@@ -1,4 +1,4 @@
-package lua
+package luna
 
 import "strconv"
 
@@ -11,7 +11,7 @@ const (
 	TokenConcat; TokenVarArg; TokenEOF;
 )
 
-var tokenStr = [22]string{
+var tokenStr = []string{
 	"and", "break", "do", "else", "elseif", "end",
 	"false", "for", "function", "if", "in",
 	"local", "nil", "not", "or", "repeat",
@@ -25,7 +25,7 @@ type TokenDetail struct {
 	module *String // module name of this token belongs to
 	line   int64   // token line number in module
 	column int64   // token column number at 'line'
-	token  int64   // token value
+	token  int32   // token value
 }
 
 func GetTokenStr(t TokenDetail) string {
