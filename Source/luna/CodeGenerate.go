@@ -1,0 +1,5 @@
+package luna
+
+func CodeGenerate()  {
+	
+}
