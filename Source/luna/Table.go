@@ -4,6 +4,7 @@ type Array []Value
 type Hash map[Value]Value
 
 type Table struct {
+	GCObject
 	array *Array
 	hash  *Hash
 }

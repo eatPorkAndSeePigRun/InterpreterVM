@@ -1,6 +1,7 @@
 package luna
 
 type UserData struct {
+	GCObject
 	UserData  *int32
 	metaTable *Table
 	//destroyer

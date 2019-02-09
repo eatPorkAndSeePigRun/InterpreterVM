@@ -1,9 +1,11 @@
 package luna
 
 type Function struct {
+	GCObject
 }
 
 type Closure struct {
+	GCObject
 	prototype *Function
 	upValues  []*UpValue
 }

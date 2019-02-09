@@ -1,6 +1,7 @@
 package luna
 
 type String struct {
+	GCObject
 	inHeap    string  // Calculate hash of string
 	strBuffer string  // Buffer for short string
 	str       *string // Pointer to heap which stored long string
