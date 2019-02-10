@@ -8,7 +8,7 @@ type UserData struct {
 	destroyed bool
 }
 
-func (userData UserData) Accept() {
+func (userData UserData) Accept(visitor GCObjectVisitor) {
 
 }
 
@@ -24,10 +24,10 @@ func (userData UserData) MarkDestroyed() {
 
 }
 
-func (userData UserData) GetData()  {
+func (userData UserData) GetData() {
 
 }
 
-func (userData UserData) GetMetaTable()  {
+func (userData UserData) GetMetaTable() {
 
 }

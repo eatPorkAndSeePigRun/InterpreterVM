@@ -25,7 +25,7 @@ func (table Table) moveHashToArray(key Value) bool {
 	return false
 }
 
-func (table Table) Accept(v *GCObjectVisitor) {
+func (table Table) Accept(v GCObjectVisitor) {
 
 }
 

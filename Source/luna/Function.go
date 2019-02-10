@@ -10,22 +10,22 @@ type Closure struct {
 	upValues  []*UpValue
 }
 
-func (closure Closure) Accept()  {
+func (closure Closure) Accept(visitor GCObjectVisitor) {
 
 }
 
-func (closure Closure) GetPrototype()  {
+func (closure Closure) GetPrototype() {
 
 }
 
-func (closure Closure) SetPrototype()  {
+func (closure Closure) SetPrototype() {
 
 }
 
-func (closure Closure) AddUpValue()  {
+func (closure Closure) AddUpValue() {
 
 }
 
-func (closure Closure) GetUpValue()  {
+func (closure Closure) GetUpValue() {
 
 }
