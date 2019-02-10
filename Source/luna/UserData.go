@@ -1,33 +1,38 @@
 package luna
 
+type Destroyer func(*int32)
+
 type UserData struct {
 	GCObject
-	UserData  *int32
-	metaTable *Table
-	//destroyer
-	destroyed bool
+	userData  *int32    // Point to user data
+	metaTable *Table    // MetaTable of user data
+	destroyer Destroyer // User data destroyer, call it when user data destroy
+	destroyed bool      // Whether user data destroyed
 }
 
-func (userData UserData) Accept(visitor GCObjectVisitor) {
-
+func (u UserData) Accept(visitor GCObjectVisitor) {
+	if visitor.VisitUserData(&u) {
+		u.metaTable.Accept(visitor)
+	}
 }
 
-func (userData UserData) Set(userData_ *int32, metaTable *Table) {
-
+func (u *UserData) Set(userData *int32, metaTable *Table) {
+	u.userData = userData
+	u.metaTable = metaTable
 }
 
-func (userData UserData) SetDestroyer() {
-
+func (u *UserData) SetDestroyer(destroyer Destroyer) {
+	u.destroyer = destroyer
 }
 
-func (userData UserData) MarkDestroyed() {
-
+func (u *UserData) MarkDestroyed() {
+	u.destroyed = true
 }
 
-func (userData UserData) GetData() {
-
+func (u UserData) GetData() *int32 {
+	return u.userData
 }
 
-func (userData UserData) GetMetaTable() {
-
+func (u UserData) GetMetaTable() *Table {
+	return u.metaTable
 }
