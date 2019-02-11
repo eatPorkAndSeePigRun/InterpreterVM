@@ -20,3 +20,6 @@ func (lexException LexException) NewLexException() LexException {
 	// TODO
 	return LexException{}
 }
+
+type CallCFuncException struct {
+}

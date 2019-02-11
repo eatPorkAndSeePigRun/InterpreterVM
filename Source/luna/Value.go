@@ -27,7 +27,7 @@ type Value struct {
 	UpValue  *UpValue
 	Table    *Table
 	UserDate *UserData
-	CFunc    *CFunctionType
+	CFunc    CFunctionType
 	Num      float64
 	BValue   bool
 
