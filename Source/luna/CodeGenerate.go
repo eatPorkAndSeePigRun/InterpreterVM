@@ -1,5 +1,5 @@
 package luna
 
-func CodeGenerate()  {
-	
+func CodeGenerate(root *SyntaxTree, state *State) {
+
 }
