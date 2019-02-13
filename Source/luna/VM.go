@@ -1,5 +1,7 @@
 package luna
 
+import "unsafe"
+
 func numberToStr(num *Value) string {
 	if num.Type != ValueTNumber {
 		panic("assert")
@@ -17,16 +19,75 @@ func (vm VM) executeFrame() {
 	proto := cl.GetPrototype()
 	var a, b, c *Value
 
-	for call.Instruction < call.End {
+	for uintptr(unsafe.Pointer(call.Instruction)) < uintptr(unsafe.Pointer(call.End)) {
 		vm.state.CheckRunGC()
-		i := *c
+		i := *call.Instruction
+		temp :=  uintptr(unsafe.Pointer(call.Instruction))
+		temp++
+		call.Instruction = (*Instruction)(unsafe.Pointer(temp))
+
+		switch Instruction.GetOpCode(Instruction{}, i) {
+		case OpTypeLoadNil:
+		case OpTypeFillNil:
+		case OpTypeLoadBool:
+		case OpTypeLoadInt:
+		case OpTypeLoadConst:
+		case OpTypeMove:
+		case OpTypeCall:
+		case OpTypeGetUpvalue:
+		case OpTypeSetUpvalue:
+		case OpTypeGetGlobal:
+		case OpTypeSetGlobal:
+		case OpTypeClosure:
+		case OpTypeVarArg:
+		case OpTypeRet:
+		case OpTypeJmpFalse:
+		case OpTypeJmpTrue:
+		case OpTypeJmpNil:
+		case OpTypeJmp:
+		case OpTypeNeg:
+		case OpTypeNot:
+		case OpTypeLen:
+		case OpTypeAdd:
+		case OpTypeSub:
+		case OpTypeMul:
+		case OpTypeDiv:
+		case OpTypePow:
+		case OpTypeMod:
+		case OpTypeConcat:
+		case OpTypeLess:
+		case OpTypeGreater:
+		case OpTypeEqual:
+		case OpTypeUnEqual:
+		case OpTypeLessEqual:
+		case OpTypeGreaterEqual:
+		case OpTypeNewTable:
+		case OpTypeSetTable:
+		case OpTypeGetTable:
+		case OpTypeForInit:
+		case OpTypeForStep:
+		}
 	}
 
+	newTop := call.Func_
+	// Reset top value
+	vm.state.stack.SetNewTop(newTop)
+	// Set expect results
+	if call.ExpectResult != ExpValueCountAny {
+		vm.state.stack.SetNewTop(newTop + call.ExpectResult)
+	}
+	// Pop current CallInfo, and return to last CallInfo
+	//vm.state.calls TODO
 }
 
 // Execute next frame if return true
-func (vm VM) call(a *Value, i Instruction) {
+func (vm VM) call(a *Value, i Instruction) bool {
+	if a.Type != ValueTClosure && a.Type != ValueTCFunction {
+		vm.reportTypeError(a, "call")
+		return true
+	}
 
+	argCount :=
 }
 
 func (vm VM) generateClosure(a *Value, i Instruction) {
@@ -75,6 +136,9 @@ func (vm VM) checkTableType(t, k *Value, op, desc string) {
 }
 
 func (vm VM) reportTypeError(v *Value, op string) {
+	ns := vm.getOperandNameAndScope(v)
+	pos := vm.getCurrentInstructionPos()
+	panic()
 
 }
 
