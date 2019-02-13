@@ -13,3 +13,11 @@
 5. 压力测试，格式为`func BenchmarkXxx(b *testing.B)`，循环中用`B.N`
 
 6. 压力测试时，用`go test -test.bench=".*"`
+
+## 指针
+
+1. `unsafe.Pointer`用于转换指针
+
+2. `uintptr`用于指针运算
+
+3. `unsafe`包的三个接口：`func Sizeof(x ArbitraryType) uintptr`， `func Offsetof(x ArbitraryType) uintptr`， `func Alignof(x ArbitraryType) uintptr`

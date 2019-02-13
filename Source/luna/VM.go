@@ -12,6 +12,15 @@ type VM struct {
 }
 
 func (vm VM) executeFrame() {
+	call := vm.state.calls.Back().Value.(*CallInfo)
+	cl := call.Func_.Closure
+	proto := cl.GetPrototype()
+	var a, b, c *Value
+
+	for call.Instruction < call.End {
+		vm.state.CheckRunGC()
+		i := *c
+	}
 
 }
 
