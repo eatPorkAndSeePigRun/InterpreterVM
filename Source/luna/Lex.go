@@ -5,6 +5,8 @@ import (
 	"unicode"
 )
 
+const EOF = 0
+
 var keyword = []string{
 	"and", "break", "do", "else", "elseif", "end",
 	"false", "for", "function", "if", "in",
@@ -12,385 +14,481 @@ var keyword = []string{
 	"return", "then", "true", "until", "while",
 }
 
-func isKeyWord(name string, token *int32) bool {
-	i := 0
-	for ; i < len(keyword); i++ {
-		if name == keyword[i] {
-			*token = int32(TokenAnd + i)
+func isKeyWord(name string, token *int) bool {
+	if token == nil {
+		panic("assert")
+	}
+
+	for i, v := range keyword {
+		if name == v {
+			*token = TokenAnd + i
 			return true
 		}
 	}
 	return false
 }
 
-func isHexChar(c int32) bool {
+func isHexChar(c uint8) bool {
 	return (c >= '0' && c <= '9') ||
 		(c >= 'a' && c <= 'f') ||
 		(c >= 'A' && c <= 'F')
 }
 
-func (lexer Lexer) normalTokenDetail(detail *TokenDetail, token int32) int32 {
+func (l Lexer) normalTokenDetail(detail *TokenDetail, token int) int {
 	detail.token = token
-	detail.line = lexer.line
-	detail.column = lexer.column
-	detail.module = lexer.module
+	detail.line = l.line
+	detail.column = l.column
+	detail.module = l.module
 	return token
 }
 
-func (lexer Lexer) numberTokenDetail(detail *TokenDetail, number float64) int32 {
+func (l Lexer) numberTokenDetail(detail *TokenDetail, number float64) int {
 	detail.number = number
-	return lexer.normalTokenDetail(detail, TokenNumber)
+	return l.normalTokenDetail(detail, TokenNumber)
 }
 
-func (lexer Lexer) tokenDetail(detail *TokenDetail, str string, token int32) int32 {
-	detail.str = lexer.state.GetString(str)
-	return lexer.normalTokenDetail(detail, token)
+func (l Lexer) tokenDetail(detail *TokenDetail, str string, token int) int {
+	detail.str = l.state.GetString(str)
+	return l.normalTokenDetail(detail, token)
 }
 
-func (lexer Lexer) setEofTokenDetail(detail *TokenDetail) {
+func (l Lexer) setEofTokenDetail(detail *TokenDetail) {
 	detail.str = nil
 	detail.token = TokenEOF
-	detail.line = lexer.line
-	detail.column = lexer.column
-	detail.module = lexer.module
+	detail.line = l.line
+	detail.column = l.column
+	detail.module = l.module
 }
 
-type CharInStream func() int32
+type CharInStream func() uint8
 
 type Lexer struct {
 	state    *State
 	module   *String
 	inStream CharInStream
 
-	current int32
-	line    int64
-	column  int64
+	current uint8
+	line    int
+	column  int
 
 	tokenBuffer string
 }
 
+func NewLexer(state *State, module *String, in CharInStream) Lexer {
+	var l Lexer
+	l.state = state
+	l.module = module
+	l.inStream = in
+	l.current = EOF
+	l.line = 1
+	l.column = 0
+	return l
+}
+
 // Get next token, 'detail' store next token detail information,
 // return value is next token type.
-func (lexer Lexer) GetToken(detail *TokenDetail) int32 {
-	lexer.setEofTokenDetail(detail)
-	if lexer.current == -1 {
-		lexer.current = lexer.next()
+func (l *Lexer) GetToken(detail *TokenDetail) (int, error) {
+	if detail == nil {
+		panic("assert")
 	}
 
-	for ;lexer.current != -1; {
-		switch lexer.current {
+	l.setEofTokenDetail(detail)
+	if l.current == EOF {
+		l.current = l.next()
+	}
+
+	for l.current != EOF {
+		switch l.current {
 		case ' ', '\t', '\v', '\f':
-			lexer.current = lexer.next()
+			l.current = l.next()
 		case '\r', '\n':
-			lexer.lexNewLine()
+			l.lexNewLine()
 		case '-':
-			next := lexer.next()
+			next := l.next()
 			if next == '-' {
-				lexer.lexComment()
+				return -1, l.lexComment()
 			} else {
-				lexer.current = next
-				return lexer.normalTokenDetail(detail, '-')
+				l.current = next
+				return l.normalTokenDetail(detail, '-'), nil
 			}
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			return lexer.lexNumber(detail)
+			return l.lexNumber(detail)
 		case '+', '*', '/', '%', '^', '#', '(', ')', '{', '}',
 			']', ';', ':', ',':
-			token := lexer.current
-			lexer.current = lexer.next()
-			return lexer.normalTokenDetail(detail, token)
+			token := int(l.current)
+			l.current = l.next()
+			return l.normalTokenDetail(detail, token), nil
 		case '.':
-			next := lexer.next()
+			next := l.next()
 			if next == '.' {
-				preNext := lexer.next()
+				preNext := l.next()
 				if preNext == '.' {
-					lexer.current = lexer.next()
-					return lexer.normalTokenDetail(detail, TokenVarArg)
+					l.current = l.next()
+					return l.normalTokenDetail(detail, TokenVarArg), nil
 				} else {
-					lexer.current = preNext
-					return lexer.normalTokenDetail(detail, TokenConcat)
+					l.current = preNext
+					return l.normalTokenDetail(detail, TokenConcat), nil
 				}
-			} else if unicode.IsDigit(next) {
-				lexer.tokenBuffer = string(lexer.current)
-				lexer.current = next
-				return lexer.lexNUmberXFractional(detail, false, true,
-					func(c int32) bool { return unicode.IsDigit(c) },
-					func(c int32) bool { return c == 'e' || c == 'E' })
+			} else if unicode.IsDigit(rune(next)) {
+				l.tokenBuffer = string(l.current)
+				l.current = next
+				return l.lexNUmberXFractional(detail, false, true,
+					func(c uint8) bool { return unicode.IsDigit(rune(c)) },
+					func(c uint8) bool { return c == 'e' || c == 'E' })
 			} else {
-				lexer.current = lexer.next()
-				return lexer.normalTokenDetail(detail, '.')
+				l.current = l.next()
+				return l.normalTokenDetail(detail, '.'), nil
 			}
 		case '~':
-			next := lexer.next()
+			next := l.next()
 			if next != '=' {
-				// TODO
+				return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "expect '=' after '~'")
 			}
+			l.current = l.next()
+			return l.normalTokenDetail(detail, TokenNotEqual), nil
 		case '=':
-			return lexer.lexXEqual(detail, TokenEqual)
+			return l.lexXEqual(detail, TokenEqual), nil
 		case '>':
-			return lexer.lexXEqual(detail, TokenGreaterEqual)
+			return l.lexXEqual(detail, TokenGreaterEqual), nil
 		case '<':
-			return lexer.lexXEqual(detail, TokenLessEqual)
+			return l.lexXEqual(detail, TokenLessEqual), nil
 		case '[':
-			lexer.current = lexer.next()
-			if lexer.current == '[' || lexer.current == '=' {
-				return lexer.lexMultiLineString(detail)
+			l.current = l.next()
+			if l.current == '[' || l.current == '=' {
+				return l.lexMultiLineString(detail)
 			} else {
-				return lexer.normalTokenDetail(detail, '[')
+				return l.normalTokenDetail(detail, '['), nil
 			}
 		case '\'', '"':
-			return lexer.lexSingleLineString(detail)
+			return l.lexSingleLineString(detail)
 		default:
-			return lexer.lexId(detail)
+			return l.lexId(detail)
 		}
-	return TokenEOF
 	}
+
+	return TokenEOF, nil
 }
 
 // Get current lex module name.
-func (lexer Lexer) GetLexModule() *String {
-	return lexer.module
+func (l Lexer) GetLexModule() *String {
+	return l.module
 }
 
-func (lexer Lexer) next() int32 {
-	c := lexer.inStream()
-	if c != -1 {
-		lexer.column++
+func (l *Lexer) next() uint8 {
+	c := l.inStream()
+	if c != EOF {
+		l.column++
 	}
 	return c
 }
 
-func (lexer Lexer) lexNewLine() {
-	next := lexer.next()
-	if (next == '\r' || next == '\n') && (next != lexer.current) {
-		lexer.current = lexer.next()
+func (l *Lexer) lexNewLine() {
+	next := l.next()
+	if (next == '\r' || next == '\n') && (next != l.current) {
+		l.current = l.next()
 	} else {
-		lexer.current = next
+		l.current = next
 	}
-	lexer.line++
-	lexer.column = 0
+	l.line++
+	l.column = 0
 }
 
-func (lexer Lexer) lexComment() {
-	lexer.current = lexer.next()
-	if lexer.current == '[' {
-		lexer.current = lexer.next()
-		if lexer.current == '[' {
-			lexer.lexMultiLineComment()
+func (l *Lexer) lexComment() error {
+	l.current = l.next()
+	if l.current == '[' {
+		l.current = l.next()
+		if l.current == '[' {
+			return l.lexMultiLineComment()
 		} else {
-			lexer.lexSingleLineComment()
+			l.lexSingleLineComment()
 		}
 	} else {
-		lexer.lexSingleLineComment()
+		l.lexSingleLineComment()
 	}
+	return nil
 }
 
-func (lexer Lexer) lexMultiLineComment() LexException {
-	isCommentEnd := false
-	for ; isCommentEnd; {
-		if lexer.current == ']' {
-			lexer.current = lexer.next()
-			if lexer.current == ']' {
+func (l Lexer) lexMultiLineComment() error {
+	var isCommentEnd bool
+	for !isCommentEnd {
+		if l.current == ']' {
+			l.current = l.next()
+			if l.current == ']' {
 				isCommentEnd = true
-				lexer.current = lexer.next()
+				l.current = l.next()
 			}
-		} else if lexer.current == -1 {
+		} else if l.current == EOF {
 			// uncompleted multi-line comment
-			return LexException{lexer.module.GetCStr(), lexer.line, lexer.column,
-				"expect complete multi-line comment before <eof>"}
-		} else if lexer.current == '\r' || lexer.current == '\n' {
-			lexer.lexNewLine()
+			return NewLexError(l.module.GetCStr(), l.line, l.column,
+				"expect complete multi-line comment before <eof>")
+		} else if l.current == '\r' || l.current == '\n' {
+			l.lexNewLine()
 		} else {
-			lexer.current = lexer.next()
+			l.current = l.next()
 		}
 	}
+
+	return nil
 }
 
-func (lexer Lexer) lexSingleLineComment() {
-	for ; lexer.current != '\r' &&
-		lexer.current != '\n' &&
-		lexer.current != -1; {
-		lexer.current = lexer.next()
+func (l Lexer) lexSingleLineComment() {
+	for l.current != '\r' && l.current != '\n' && l.current != EOF {
+		l.current = l.next()
 	}
 }
 
-func (lexer Lexer) lexNumber(detail *TokenDetail) int32 {
-	integerPart := false
-	lexer.tokenBuffer = ""
-	if lexer.current == '0' {
-		next := lexer.next()
+func (l *Lexer) lexNumber(detail *TokenDetail) (int, error) {
+	var integerPart bool
+	l.tokenBuffer = ""
+	if l.current == '0' {
+		next := l.next()
 		if next == 'x' || next == 'X' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-			lexer.tokenBuffer = lexer.tokenBuffer + string(next)
-			lexer.current = lexer.next()
+			l.tokenBuffer = l.tokenBuffer + string(l.current)
+			l.tokenBuffer = l.tokenBuffer + string(next)
+			l.current = l.next()
 
-			return lexer.lexNumberX(detail, false, isHexChar,
-				)
+			return l.lexNumberX(detail, false, isHexChar,
+				func(c uint8) bool { return c == 'p' || c == 'P' })
+		} else {
+			l.tokenBuffer = l.tokenBuffer + string(l.current)
+			l.current = next
+			integerPart = true
 		}
 	}
+
+	return l.lexNumberX(detail, integerPart,
+		func(c uint8) bool { return !unicode.IsDigit(rune(c)) },
+		func(c uint8) bool { return c == 'e' || c == 'E' })
 }
 
-func (lexer Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
-	isNumberChar func(int32) bool,
-	isExponent func(int64) bool) int64 {
-	for ;isNumberChar(lexer.current);{
-		lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-		lexer.current = lexer.next()
+func (l Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
+	isNumberChar func(uint8) bool, isExponent func(uint8) bool) (int, error) {
+	for isNumberChar(l.current) {
+		l.tokenBuffer = l.tokenBuffer + string(l.current)
+		l.current = l.next()
 		integerPart = true
 	}
 
-	point := false
-	if lexer.current == '.' {
-		lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-		lexer.current = lexer.next()
-		point  = true
+	var point = false
+	if l.current == '.' {
+		l.tokenBuffer = l.tokenBuffer + string(l.current)
+		l.current = l.next()
+		point = true
 	}
 
-	return lexer.lexNUmberXFractional(detail, integerPart, point, &isNumberChar, &isExponent)
+	return l.lexNUmberXFractional(detail, integerPart, point, isNumberChar, isExponent)
 }
 
-func (lexer Lexer) lexNUmberXFractional(detail *TokenDetail,
-	integerPart bool, point bool,
-	isNumberChar *func(int64) bool,
-	isExponent *func(int64) bool) int64 {
-		fractionalPart := false
-		for ;isNumberChar(lexer.current); {
-			lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-			lexer.current = lexer.next()
-			fractionalPart = true
+func (l Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, point bool,
+	isNumberChar func(uint8) bool, isExponent func(uint8) bool) (int, error) {
+	fractionalPart := false
+	for isNumberChar(l.current) {
+		l.tokenBuffer = l.tokenBuffer + string(l.current)
+		l.current = l.next()
+		fractionalPart = true
+	}
+
+	if point && !integerPart && !fractionalPart {
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect '.'")
+	} else if !point && !integerPart && !fractionalPart {
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
+			"unexpect incomplete number'", l.tokenBuffer, "'")
+	}
+
+	if isExponent(l.current) {
+		l.tokenBuffer = l.tokenBuffer + string(l.current)
+		l.current = l.next()
+		if l.current == '-' || l.current == '+' {
+			l.tokenBuffer = l.tokenBuffer + string(l.current)
+			l.current = l.next()
 		}
 
-		if point && !integerPart && !fractionalPart {
-			// TODO
-		} else if !point && !integerPart && !fractionalPart {
-			// TODO
+		if !unicode.IsDigit(rune(l.current)) {
+			return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
+				"expect exponent after '", l.tokenBuffer, "'")
 		}
 
-		if isExponent(lexer.current) {
-			lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-			lexer.current = lexer.next()
-			if lexer.current == '-' || lexer.current == '+' {
-				lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-				lexer.current = lexer.next()
-			}
-
-			if !unicode.IsDigit(lexer.current) {
-				// TODO
-			}
-
-			for ;unicode.IsDigit(lexer.current); {
-				lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-				lexer.current = lexer.next()
-			}
+		for unicode.IsDigit(rune(l.current)) {
+			l.tokenBuffer = l.tokenBuffer + string(l.current)
+			l.current = l.next()
 		}
+	}
 
-		number := strconv.ParseFloat(lexer.tokenBuffer, 64)
-		return lexer.numberTokenDetail(detail, number)
+	number, err := strconv.ParseFloat(l.tokenBuffer, 64)
+	panic(err)
+	return l.numberTokenDetail(detail, number), nil
 }
 
-func (lexer Lexer) lexXEqual(detail *TokenDetail, equalToken int32) int32 {
-	token := lexer.current
+func (l Lexer) lexXEqual(detail *TokenDetail, equalToken int) int {
+	token := int(l.current)
 
-	next := lexer.next()
+	next := l.next()
 	if next == '=' {
-		lexer.current = lexer.next()
-		return lexer.normalTokenDetail(detail, equalToken)
+		l.current = l.next()
+		return l.normalTokenDetail(detail, equalToken)
 	} else {
-		lexer.current = next
-		return lexer.normalTokenDetail(detail, token)
+		l.current = next
+		return l.normalTokenDetail(detail, token)
 	}
 }
 
-func (lexer Lexer) lexMultiLineString(detail *TokenDetail) int32 {
-	var equals int64 = 0
-	for ;lexer.current == '='; {
+func (l Lexer) lexMultiLineString(detail *TokenDetail) (int, error) {
+	equals := 0
+	for l.current == '=' {
 		equals++
-		lexer.current = lexer.next()
+		l.current = l.next()
 	}
 
-	if lexer.current != '['
-		// TODO
-
-	lexer.current = lexer.next()
-	lexer.tokenBuffer = ""
-
-	if lexer.current == '\r' || lexer.current == '\n' {
-		lexer.lexNewLine()
-		if equals == 0 {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\n')
-		}
-	}
-}
-
-func (lexer Lexer) lexSingleLineString(detail *TokenDetail) int32 {
-	quote := lexer.current
-	lexer.current = lexer.next()
-	lexer.tokenBuffer = ""
-
-	for ;lexer.current != quote; {
-		if lexer.current == -1 {
-			// TODO
-		}
-		if lexer.current == '\r' || lexer.current == '\n' {
-			// TODO
-		}
-		lexer.lexStringChar()
+	if l.current != '[' {
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
+			"incomplete multi-line string at '", l.tokenBuffer, "'")
 	}
 
-	lexer.current = lexer.next()
-	return lexer.tokenDetail(detail, lexer.tokenBuffer, TokenString)
-}
+	l.current = l.next()
+	l.tokenBuffer = ""
 
-func (lexer Lexer) lexStringChar() {
-	if lexer.current == '\\' {
-		lexer.current = lexer.next()
-		if lexer.current == 'a' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\a')
-		} else if lexer.current == 'b' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\b')
-		} else if lexer.current == 'f' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\f')
-		} else if lexer.current == 'n' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\n')
-		} else if lexer.current == 'r' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\r')
-		} else if lexer.current == 't' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\t')
-		} else if lexer.current == 'v' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\v')
-		} else if lexer.current == '\\' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\\')
-		} else if lexer.current == '"' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('"')
-		} else if lexer.current == '\'' {
-			lexer.tokenBuffer = lexer.tokenBuffer + string('\'')
-		} else if lexer.current == 'x' {
-			lexer.current = lexer.next()
+	if l.current == '\r' || l.current == '\n' {
+		l.lexNewLine()
+		if equals == 0 { // "[[]]" keeps first '\n'
+			l.tokenBuffer = l.tokenBuffer + string('\n')
+		}
+	}
 
-		} else if unicode.IsDigit(lexer.current) {
+	for l.current != EOF {
+		if l.current == ']' {
+			l.current = l.next()
+			i := 0
+			for ; i < equals; i++ {
+				if l.current != '=' {
+					break
+				}
+				l.current = l.next()
+			}
 
+			if i == equals && l.current == ']' {
+				l.current = l.next()
+				l.tokenDetail(detail, l.tokenBuffer, TokenString)
+			} else {
+				l.tokenBuffer = l.tokenBuffer + "]"
+				for j := 0; j < i; j++ {
+					l.tokenBuffer = l.tokenBuffer + string('=')
+				}
+			}
+		} else if l.current == '\r' || l.current == '\n' {
+			l.lexNewLine()
+			l.tokenBuffer = l.tokenBuffer + string('\n')
 		} else {
-
+			l.tokenBuffer = l.tokenBuffer + string(l.current)
+			l.current = l.next()
 		}
 	}
+
+	return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "incomplete multi-line string at <eof>")
 }
 
-func (lexer Lexer) lexId(detail *TokenDetail) int32 {
-	if !unicode.IsLetter(lexer.current) && lexer.current != '_' {
-		// TODO panic()
+func (l Lexer) lexSingleLineString(detail *TokenDetail) (int, error) {
+	quote := l.current
+	l.current = l.next()
+	l.tokenBuffer = ""
+
+	for l.current != quote {
+		if l.current == EOF {
+			return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
+				"incomplete string at <eof>")
+		}
+		if l.current == '\r' || l.current == '\n' {
+			return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
+				"incomplete string at this line")
+		}
+		return -1, l.lexStringChar()
 	}
 
-	lexer.tokenBuffer = string(lexer.current)
-	lexer.current = lexer.next()
+	l.current = l.next()
+	return l.tokenDetail(detail, l.tokenBuffer, TokenString), nil
+}
 
-	for ;unicode.IsLetter(lexer.current) || lexer.current == '_'; {
-		lexer.tokenBuffer = lexer.tokenBuffer + string(lexer.current)
-		lexer.current = lexer.next()
+func (l Lexer) lexStringChar() error {
+	if l.current == '\\' {
+		l.current = l.next()
+		if l.current == 'a' {
+			l.tokenBuffer = l.tokenBuffer + string('\a')
+		} else if l.current == 'b' {
+			l.tokenBuffer = l.tokenBuffer + string('\b')
+		} else if l.current == 'f' {
+			l.tokenBuffer = l.tokenBuffer + string('\f')
+		} else if l.current == 'n' {
+			l.tokenBuffer = l.tokenBuffer + string('\n')
+		} else if l.current == 'r' {
+			l.tokenBuffer = l.tokenBuffer + string('\r')
+		} else if l.current == 't' {
+			l.tokenBuffer = l.tokenBuffer + string('\t')
+		} else if l.current == 'v' {
+			l.tokenBuffer = l.tokenBuffer + string('\v')
+		} else if l.current == '\\' {
+			l.tokenBuffer = l.tokenBuffer + string('\\')
+		} else if l.current == '"' {
+			l.tokenBuffer = l.tokenBuffer + string('"')
+		} else if l.current == '\'' {
+			l.tokenBuffer = l.tokenBuffer + string('\'')
+		} else if l.current == 'x' {
+			l.current = l.next()
+			var hex string
+			var i int
+			for ; i < 2 && isHexChar(l.current); i++ {
+				hex = hex + string(l.current)
+				l.current = l.next()
+			}
+			if i == 0 {
+				return NewLexError(l.module.GetCStr(), l.line, l.column,
+					"unexpect character after '\\x'")
+			}
+			num, err := strconv.ParseInt(hex, 16, 8)
+			if err != nil {
+				panic(err)
+			}
+			l.tokenBuffer = string(num)
+			return nil
+		} else if unicode.IsDigit(rune(l.current)) {
+			var oct string
+			for i := 0; i < 3 && unicode.IsDigit(rune(l.current)); i++ {
+				oct = oct + string(l.current)
+				l.current = l.next()
+			}
+			num, err := strconv.ParseInt(oct, 8, 8)
+			if err != nil {
+				panic(err)
+			}
+			l.tokenBuffer = l.tokenBuffer + string(num)
+			return nil
+		} else {
+			return NewLexError(l.module.GetCStr(), l.line, l.column,
+				"unexpect character after '\\'")
+		}
+	} else {
+		l.tokenBuffer = l.tokenBuffer + string(l.current)
 	}
 
-	var token int32 = 0
-	if !isKeyWord(lexer.tokenBuffer, &token) {
+	l.current = l.next()
+	return nil
+}
+
+func (l Lexer) lexId(detail *TokenDetail) (int, error) {
+	if !unicode.IsLetter(rune(l.current)) && l.current != '_' {
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect character")
+	}
+
+	l.tokenBuffer = string(l.current)
+	l.current = l.next()
+
+	for unicode.IsLetter(rune(l.current)) || l.current == '_' {
+		l.tokenBuffer = l.tokenBuffer + string(l.current)
+		l.current = l.next()
+	}
+
+	var token int
+	if !isKeyWord(l.tokenBuffer, &token) {
 		token = TokenId
 	}
 
-	return lexer.tokenDetail(detail, lexer.tokenBuffer, token)
+	return l.tokenDetail(detail, l.tokenBuffer, token), nil
 }

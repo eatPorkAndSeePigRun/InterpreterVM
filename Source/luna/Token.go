@@ -3,12 +3,32 @@ package luna
 import "strconv"
 
 const (
-	TokenAnd = 256 + iota ; TokenBreak; TokenDo; TokenElse; TokenElseif; TokenEnd;
-	TokenFalse; TokenFor; TokenFunction; TokenIf; TokenIn;
-	TokenLocal; TokenNil; TokenNot; TokenOr; TokenRepeat;
-	TokenId; TokenString; TokenNumber;
-	TokenEqual; TokenNotEqual; TokenLessEqual; TokenGreaterEqual;
-	TokenConcat; TokenVarArg; TokenEOF;
+	TokenAnd = 256 + iota
+	TokenBreak
+	TokenDo
+	TokenElse
+	TokenElseif
+	TokenEnd
+	TokenFalse
+	TokenFor
+	TokenFunction
+	TokenIf
+	TokenIn
+	TokenLocal
+	TokenNil
+	TokenNot
+	TokenOr
+	TokenRepeat
+	TokenId
+	TokenString
+	TokenNumber
+	TokenEqual
+	TokenNotEqual
+	TokenLessEqual
+	TokenGreaterEqual
+	TokenConcat
+	TokenVarArg
+	TokenEOF
 )
 
 var tokenStr = []string{
@@ -23,9 +43,9 @@ type TokenDetail struct {
 	str    *String // string for TokenId, TokenKeyWord and TokenString
 
 	module *String // module name of this token belongs to
-	line   int64   // token line number in module
-	column int64   // token column number at 'line'
-	token  int32   // token value
+	line   int     // token line number in module
+	column int     // token column number at 'line'
+	token  int     // token value
 }
 
 func GetTokenStr(t TokenDetail) string {

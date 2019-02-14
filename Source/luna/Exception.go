@@ -1,49 +1,41 @@
 package luna
 
-// Base exception for luna, all exception throw by luna
-// are derived from this class
-type Exception struct {
-	what string
-}
+import "fmt"
 
-func (exception Exception) What() string {
-	return exception.what
-}
-
-func (exception Exception) setWhat() {
-	// TODO
-}
-
-// Module file open failed, this exception will be throw
+// Module file open failed, this Error will be throw
 type OpenFileFail struct {
 }
 
 // For lexer report error of token
-type LexException struct {
-	exception Exception
+type LexError struct {
+	what string
 }
 
-func (lexException LexException) NewLexException() LexException {
-	// TODO
-	return LexException{}
+func NewLexError(module string, line, column int, args ...interface{}) error {
+	what := module + ":" + string(line) + ":" + string(column) + " " + fmt.Sprint(args)
+	return &LexError{what}
+}
+
+func (l LexError) Error() string {
+	return l.what
 }
 
 // For parser report grammar error
-type ParseException struct {
+type ParseError struct {
 }
 
 // For semantic analyser report semantic error
-type SemanticException struct {
+type SemanticError struct {
 }
 
 // For code generator report error
-type CodeGenerateException struct {
+type CodeGenerateError struct {
 }
 
 // Report error of call c function
-type CallCFuncException struct {
+type CallCFuncError struct {
 }
 
 // For VM report runtime error
-type RuntimeException struct {
+type RuntimeError struct {
 }

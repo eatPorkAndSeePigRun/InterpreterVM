@@ -22,7 +22,7 @@ func (vm VM) executeFrame() {
 	for uintptr(unsafe.Pointer(call.Instruction)) < uintptr(unsafe.Pointer(call.End)) {
 		vm.state.CheckRunGC()
 		i := *call.Instruction
-		temp :=  uintptr(unsafe.Pointer(call.Instruction))
+		temp := uintptr(unsafe.Pointer(call.Instruction))
 		temp++
 		call.Instruction = (*Instruction)(unsafe.Pointer(temp))
 
@@ -87,7 +87,7 @@ func (vm VM) call(a *Value, i Instruction) bool {
 		return true
 	}
 
-	argCount :=
+	//argCount :=
 }
 
 func (vm VM) generateClosure(a *Value, i Instruction) {
