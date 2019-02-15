@@ -34,6 +34,42 @@ type Value struct {
 	Type ValueT
 }
 
+func NewValueObj() Value {
+	return Value{Obj: nil, Type: ValueTNil}
+}
+
+func NewValueBValue(bValue bool) Value {
+	return Value{BValue: bValue, Type: ValueTBool}
+}
+
+func NewValueNum(num float64) Value {
+	return Value{Num: num, Type: ValueTNumber}
+}
+
+func NewValueString(str *String) Value {
+	return Value{Str: str, Type: ValueTString}
+}
+
+func NewValueClosure(closure *Closure) Value {
+	return Value{Closure: closure, Type: ValueTClosure}
+}
+
+func NewValueUpValue(upValue *UpValue) Value {
+	return Value{UpValue: upValue, Type: ValueTUpValue}
+}
+
+func NewValueTable(table *Table) Value {
+	return Value{Table: table, Type: ValueTTable}
+}
+
+func NewUserData(userData *UserData) Value {
+	return Value{UserDate: userData, Type: ValueTUserDate}
+}
+
+func NewValueCFunction(cFunc CFunctionType) Value {
+	return Value{CFunc: cFunc, Type: ValueTCFunction}
+}
+
 func (v Value) SetNil() {
 	v.Obj = nil
 	v.Type = ValueTNil

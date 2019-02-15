@@ -4,6 +4,15 @@ import "fmt"
 
 // Module file open failed, this Error will be throw
 type OpenFileFail struct {
+	what string
+}
+
+func NewOpenFileFail(file string) error {
+	return &OpenFileFail{file}
+}
+
+func (o OpenFileFail) Error() string {
+	return o.what
 }
 
 // For lexer report error of token
@@ -34,6 +43,15 @@ type CodeGenerateError struct {
 
 // Report error of call c function
 type CallCFuncError struct {
+	what string
+}
+
+func NewCallCFuncError(args ...interface{}) error {
+	return &CallCFuncError{fmt.Sprint(args)}
+}
+
+func (c CallCFuncError) Error() string {
+	return c.what
 }
 
 // For VM report runtime error

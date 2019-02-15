@@ -8,6 +8,14 @@ type InStream struct {
 	stream *os.File
 }
 
+func NewInStream(path string) InStream {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0222)
+	if err != nil {
+		panic(err)
+	}
+	return InStream{f}
+}
+
 func (is InStream) IsOpen() bool {
 	return is.stream != nil
 }

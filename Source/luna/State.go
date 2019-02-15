@@ -3,11 +3,10 @@ package luna
 import (
 	"container/list"
 	"math"
+	"unsafe"
 )
 
 // Error type reported by called c function
-type CFunctionErrorType int64
-
 const (
 	CFunctionErrorTypeNoError = iota
 	CFunctionErrorTypeArgCount
@@ -21,10 +20,10 @@ const (
 
 // Error reported by called c function
 type CFunctionError struct {
-	type_          CFunctionErrorType
-	ExpectArgCount int64
-	ArgIndex       int64
-	ExpectType     ValueT
+	type_ int
+	//ExpectArgCount int64
+	//ArgIndex       int64
+	//ExpectType     ValueT
 }
 
 type State struct {
@@ -37,6 +36,42 @@ type State struct {
 	stack  Stack     // Stack data
 	calls  list.List // Stack frames
 	global Value     // Global table
+}
+
+func NewState() State {
+	var s State
+
+	s.stringPool = new(StringPool)
+
+	// Init GC
+	deleter := func(obj *GCObject, type_ int) {
+		if type_ == GCObjectTypeString {
+			s.stringPool.DeleteString((*String)(unsafe.Pointer(obj)))
+		}
+		obj = nil
+	}
+	s.gc = NewGC(deleter, false)
+	root := s.fullGCRoot
+	s.gc.SetRootTraveller(root, root)
+
+	// New global table
+	s.global.Table = s.NewTable()
+	s.global.Type = ValueTTable
+
+	// New table for store metaTables
+	k := Value{Type: ValueTString, Str: s.GetString(metaTables)}
+	v := Value{Type: ValueTTable, Table: s.NewTable()}
+	s.global.Table.SetValue(k, v)
+
+	// New table for store modules
+	k = Value{Type: ValueTString, Str: s.GetString(modulesTable)}
+	v = Value{Type: ValueTTable, Table: s.NewTable()}
+	s.global.Table.SetValue(k, v)
+
+	// Init module manager
+	s.moduleManager = NewModuleManager(&s, v.Table)
+
+	return s
 }
 
 // Full GC root
@@ -176,8 +211,8 @@ func (s *State) LoadModule(moduleName string) {
 	if value.IsNil() {
 		s.moduleManager.LoadModule(moduleName)
 	} else {
-		*s.stack.top = value
-		s.stack.top++
+		*s.stack.Top = value
+		s.stack.Top++
 	}
 }
 

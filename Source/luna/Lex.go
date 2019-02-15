@@ -208,7 +208,7 @@ func (l *Lexer) lexComment() error {
 	return nil
 }
 
-func (l Lexer) lexMultiLineComment() error {
+func (l *Lexer) lexMultiLineComment() error {
 	var isCommentEnd bool
 	for !isCommentEnd {
 		if l.current == ']' {
@@ -231,7 +231,7 @@ func (l Lexer) lexMultiLineComment() error {
 	return nil
 }
 
-func (l Lexer) lexSingleLineComment() {
+func (l *Lexer) lexSingleLineComment() {
 	for l.current != '\r' && l.current != '\n' && l.current != EOF {
 		l.current = l.next()
 	}
@@ -261,7 +261,7 @@ func (l *Lexer) lexNumber(detail *TokenDetail) (int, error) {
 		func(c uint8) bool { return c == 'e' || c == 'E' })
 }
 
-func (l Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
+func (l *Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
 	isNumberChar func(uint8) bool, isExponent func(uint8) bool) (int, error) {
 	for isNumberChar(l.current) {
 		l.tokenBuffer = l.tokenBuffer + string(l.current)
@@ -279,7 +279,7 @@ func (l Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
 	return l.lexNUmberXFractional(detail, integerPart, point, isNumberChar, isExponent)
 }
 
-func (l Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, point bool,
+func (l *Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, point bool,
 	isNumberChar func(uint8) bool, isExponent func(uint8) bool) (int, error) {
 	fractionalPart := false
 	for isNumberChar(l.current) {
@@ -319,7 +319,7 @@ func (l Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, point
 	return l.numberTokenDetail(detail, number), nil
 }
 
-func (l Lexer) lexXEqual(detail *TokenDetail, equalToken int) int {
+func (l *Lexer) lexXEqual(detail *TokenDetail, equalToken int) int {
 	token := int(l.current)
 
 	next := l.next()
@@ -332,7 +332,7 @@ func (l Lexer) lexXEqual(detail *TokenDetail, equalToken int) int {
 	}
 }
 
-func (l Lexer) lexMultiLineString(detail *TokenDetail) (int, error) {
+func (l *Lexer) lexMultiLineString(detail *TokenDetail) (int, error) {
 	equals := 0
 	for l.current == '=' {
 		equals++
@@ -386,7 +386,7 @@ func (l Lexer) lexMultiLineString(detail *TokenDetail) (int, error) {
 	return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "incomplete multi-line string at <eof>")
 }
 
-func (l Lexer) lexSingleLineString(detail *TokenDetail) (int, error) {
+func (l *Lexer) lexSingleLineString(detail *TokenDetail) (int, error) {
 	quote := l.current
 	l.current = l.next()
 	l.tokenBuffer = ""
@@ -407,7 +407,7 @@ func (l Lexer) lexSingleLineString(detail *TokenDetail) (int, error) {
 	return l.tokenDetail(detail, l.tokenBuffer, TokenString), nil
 }
 
-func (l Lexer) lexStringChar() error {
+func (l *Lexer) lexStringChar() error {
 	if l.current == '\\' {
 		l.current = l.next()
 		if l.current == 'a' {
@@ -472,7 +472,7 @@ func (l Lexer) lexStringChar() error {
 	return nil
 }
 
-func (l Lexer) lexId(detail *TokenDetail) (int, error) {
+func (l *Lexer) lexId(detail *TokenDetail) (int, error) {
 	if !unicode.IsLetter(rune(l.current)) && l.current != '_' {
 		return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect character")
 	}

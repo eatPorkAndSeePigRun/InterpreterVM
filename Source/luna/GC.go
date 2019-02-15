@@ -3,6 +3,7 @@ package luna
 import (
 	"container/list"
 	"log"
+	"os"
 	"time"
 )
 
@@ -80,7 +81,22 @@ type GC struct {
 	barriered list.List // Barriered GC objects
 
 	objDeleter GCObjectDeleter // GC object Deleter
-	logStream  string          // Log file
+	logStream  *os.File        // Log file
+}
+
+func NewGC(deleter GCObjectDeleter, log bool) *GC {
+	gc := GC{objDeleter: deleter}
+	gc.gen0.thresholdCount = kGen0InitThresholdCount
+	gc.gen1.thresholdCount = kGen1InitThresholdCount
+
+	if log {
+		f, err := os.OpenFile("gc.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			panic(err)
+		}
+		gc.logStream = f
+	}
+	return &gc
 }
 
 const (
@@ -276,7 +292,7 @@ func (gc GC) destroyGeneration(gen *genInfo) {
 }
 
 type RootTravelType func(GCObjectVisitor)
-type GCObjectDeleter func(*GCObject, uint64)
+type GCObjectDeleter func(*GCObject, int)
 
 type DefaultDeleter struct {
 }
@@ -286,9 +302,9 @@ func (gc GC) ResetDeleter(objDeleter GCObjectDeleter) {
 }
 
 // Set minor and major root travel functions
-func (gc GC) SetRootTraveller(minor, major *RootTravelType) {
-	gc.minorTraveller = *minor
-	gc.majorTraveller = *major
+func (gc GC) SetRootTraveller(minor, major RootTravelType) {
+	gc.minorTraveller = minor
+	gc.majorTraveller = major
 }
 
 // Alloc GC objects
