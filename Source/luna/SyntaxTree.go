@@ -3,8 +3,6 @@ package luna
 import "unsafe"
 
 // Expression or variable operation semantic
-type SemanticOp int64
-
 const (
 	SemanticOpNone = iota
 	SemanticOpRead
@@ -12,8 +10,6 @@ const (
 )
 
 // Expression or variable lexical scoping
-type LexicalScoping int64
-
 const (
 	LexicalScopingUnknown = iota
 	LexicalScopingGlobal  // Expression or variable in global table
@@ -24,15 +20,19 @@ const (
 // AST base class, all AST node derived from this class and
 // provide Visitor to Accept itself.
 type SyntaxTree interface {
-	Accept(v *Visitor, data unsafe.Pointer)
+	Accept(v Visitor, data unsafe.Pointer)
 }
 
 type Chunk struct {
-	Block  *SyntaxTree
+	Block  SyntaxTree
 	Module *String
 }
 
-func (c Chunk) Accept(v *Visitor, data unsafe.Pointer) {
+func NewChunk(block SyntaxTree, module *String) *Chunk {
+	return &Chunk{block, module}
+}
+
+func (c Chunk) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -41,7 +41,7 @@ type Block struct {
 	ReturnStmt *SyntaxTree
 }
 
-func (b Block) Accept(v *Visitor, data unsafe.Pointer) {
+func (b Block) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -51,7 +51,7 @@ type ReturnStatement struct {
 	ExpValueCount int64
 }
 
-func (r ReturnStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (r ReturnStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -60,7 +60,7 @@ type BreakStatement struct {
 	Loop  *SyntaxTree // For semantic
 }
 
-func (b BreakStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (b BreakStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -68,7 +68,7 @@ type DoStatement struct {
 	Block *SyntaxTree
 }
 
-func (d DoStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (d DoStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -80,7 +80,7 @@ type WhileStatement struct {
 	LastLine  int64
 }
 
-func (w WhileStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (w WhileStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -91,7 +91,7 @@ type RepeatStatement struct {
 	Line int64 // Line of until
 }
 
-func (r RepeatStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (r RepeatStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -104,7 +104,7 @@ type IfStatement struct {
 	BlockEndLine int64 // End line of block
 }
 
-func (i IfStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (i IfStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -117,7 +117,7 @@ type ElseIfStatement struct {
 	BlockEndLine int64 // End line of block
 }
 
-func (e ElseIfStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (e ElseIfStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -125,7 +125,7 @@ type ElseStatement struct {
 	Block *SyntaxTree
 }
 
-func (e ElseStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (e ElseStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -137,7 +137,7 @@ type NumericForStatement struct {
 	Block *SyntaxTree
 }
 
-func (n NumericForStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (n NumericForStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -149,7 +149,7 @@ type GenericForStatement struct {
 	Line int64
 }
 
-func (g GenericForStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (g GenericForStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -158,17 +158,17 @@ type FunctionStatement struct {
 	FuncBody *SyntaxTree
 }
 
-func (f FunctionStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (f FunctionStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
 type FunctionName struct {
 	Names      []TokenDetail
 	MemberName TokenDetail
-	Scoping    LexicalScoping // First token scoping
+	Scoping    int // First token scoping
 }
 
-func (f FunctionName) Accept(v *Visitor, data unsafe.Pointer) {
+func (f FunctionName) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -177,7 +177,7 @@ type LocalFunctionStatement struct {
 	FuncBody *SyntaxTree
 }
 
-func (l LocalFunctionStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (l LocalFunctionStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -188,7 +188,7 @@ type LocalNameListStatement struct {
 	NameCount int64 // For semantic and code generate
 }
 
-func (l LocalNameListStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (l LocalNameListStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -199,7 +199,7 @@ type AssignmentStatement struct {
 	VarCount int64 // For semantic
 }
 
-func (a AssignmentStatement) Accept(v *Visitor, data unsafe.Pointer) {
+func (a AssignmentStatement) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -207,17 +207,17 @@ type VarList struct {
 	VarList []*SyntaxTree
 }
 
-func (vl VarList) Accept(v *Visitor, data unsafe.Pointer) {
+func (vl VarList) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
 type Terminator struct {
 	Token    TokenDetail
-	Semantic SemanticOp
-	Scoping  LexicalScoping
+	Semantic int
+	Scoping  int
 }
 
-func (t Terminator) Accept(v *Visitor, data unsafe.Pointer) {
+func (t Terminator) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -227,7 +227,7 @@ type BinaryExpression struct {
 	OpToken TokenDetail
 }
 
-func (b BinaryExpression) Accept(v *Visitor, data unsafe.Pointer) {
+func (b BinaryExpression) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -236,7 +236,7 @@ type UnaryExpression struct {
 	OpToken TokenDetail
 }
 
-func (u UnaryExpression) Accept(v *Visitor, data unsafe.Pointer) {
+func (u UnaryExpression) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -247,7 +247,7 @@ type FunctionBody struct {
 	Line      int64
 }
 
-func (f FunctionBody) Accept(v *Visitor, data unsafe.Pointer) {
+func (f FunctionBody) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -257,7 +257,7 @@ type ParamList struct {
 	FixArgCount int64 // For semantic and code generate
 }
 
-func (p ParamList) Accept(v *Visitor, data unsafe.Pointer) {
+func (p ParamList) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -265,7 +265,7 @@ type NameList struct {
 	Names []TokenDetail
 }
 
-func (n NameList) Accept(v *Visitor, data unsafe.Pointer) {
+func (n NameList) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -274,7 +274,7 @@ type TableDefine struct {
 	Line   int64
 }
 
-func (t TokenDetail) Accept(v *Visitor, data unsafe.Pointer) {
+func (t TokenDetail) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -284,7 +284,7 @@ type TableIndexField struct {
 	Line  int64
 }
 
-func (t TableIndexField) Accept(v *Visitor, data unsafe.Pointer) {
+func (t TableIndexField) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -293,7 +293,7 @@ type TableNameField struct {
 	Value *SyntaxTree
 }
 
-func (t TableNameField) Accept(v *Visitor, data unsafe.Pointer) {
+func (t TableNameField) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -302,7 +302,7 @@ type TableArrayField struct {
 	Line  int64
 }
 
-func (t TableArrayField) Accept(v *Visitor, data unsafe.Pointer) {
+func (t TableArrayField) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -310,10 +310,10 @@ type IndexAccessor struct {
 	Table    *SyntaxTree
 	Index    *SyntaxTree
 	Line     int64
-	Semantic SemanticOp // For semantic
+	Semantic int // For semantic
 }
 
-func (i IndexAccessor) Accept(v *Visitor, data unsafe.Pointer) {
+func (i IndexAccessor) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -322,7 +322,7 @@ type MemberAccessor struct {
 	Member TokenDetail
 }
 
-func (m MemberAccessor) Accept(v *Visitor, data unsafe.Pointer) {
+func (m MemberAccessor) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -332,7 +332,7 @@ type NormalFuncCall struct {
 	Line   int64 // Function call line in source
 }
 
-func (n NormalFuncCall) Accept(v *Visitor, data unsafe.Pointer) {
+func (n NormalFuncCall) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -343,7 +343,7 @@ type MemberFuncCall struct {
 	Line   int64 // Function call line in source
 }
 
-func (m MemberFuncCall) Accept(v *Visitor, data unsafe.Pointer) {
+func (m MemberFuncCall) Accept(v Visitor, data unsafe.Pointer) {
 }
 
 type FuncCallArgs struct {
@@ -360,7 +360,7 @@ const (
 	ArgTypeString
 )
 
-func (f FuncCallArgs) Accept(v *Visitor, data unsafe.Pointer) {
+func (f FuncCallArgs) Accept(v Visitor, data unsafe.Pointer) {
 
 }
 
@@ -369,6 +369,6 @@ type ExpressionList struct {
 	Line    int64 // Start line
 }
 
-func (e ExpressionList) Accept(v *Visitor, data unsafe.Pointer) {
+func (e ExpressionList) Accept(v Visitor, data unsafe.Pointer) {
 
 }

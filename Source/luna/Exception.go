@@ -31,6 +31,17 @@ func (l LexError) Error() string {
 
 // For parser report grammar error
 type ParseError struct {
+	what string
+}
+
+func NewParseError(str string, t TokenDetail) ParseError {
+	what := t.module.GetCStr() + ":" + string(t.line) + ":" + string(t.column) +
+		" '" + GetTokenStr(t) + "' " + str
+	return ParseError{what}
+}
+
+func (p ParseError) Error() string {
+	return p.what
 }
 
 // For semantic analyser report semantic error
