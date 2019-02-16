@@ -240,7 +240,7 @@ func (s State) DoString(str, name string) {
 // If f is a closure, then create a stack frame and return true,
 // call VM::Execute() to execute the closure instructions.
 // Return false when f is a c function.
-func (s State) CallFunction(f *Value, argCount, expectResult int64) bool {
+func (s State) CallFunction(f *Value, argCount int, expectResult int64) (bool, error) {
 	if !(f.Type == ValueTClosure || f.Type == ValueTCFunction) {
 		panic("assert")
 	}

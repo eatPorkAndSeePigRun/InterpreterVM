@@ -211,8 +211,8 @@ func (f Function) GetInstructionLine(i int64) int64 {
 }
 
 // Get upValue count
-func (f Function) GetUpValueCount() int64 {
-	return int64(len(f.upValues))
+func (f Function) GetUpValueCount() int {
+	return len(f.upValues)
 }
 
 // Get upValue info by index
