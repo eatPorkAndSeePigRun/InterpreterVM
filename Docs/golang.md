@@ -21,3 +21,5 @@
 2. `uintptr`用于指针运算
 
 3. `unsafe`包的三个接口：`func Sizeof(x ArbitraryType) uintptr`， `func Offsetof(x ArbitraryType) uintptr`， `func Alignof(x ArbitraryType) uintptr`
+
+- [golang中传递中值传递以及指针传递](https://blog.csdn.net/gavin_new/article/details/80268905)

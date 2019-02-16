@@ -1,7 +1,5 @@
 package luna
 
-type OpType int64
-
 const (
 	OpTypeLoadNil      = iota + 1 // A    A: register
 	OpTypeFillNil                 // AB   A: start reg B: end reg [A,B)
@@ -45,9 +43,72 @@ const (
 )
 
 type Instruction struct {
-	OpCode uint64
+	OpCode int
 }
 
-func (i Instruction) GetOpCode(instruction Instruction) int {
-	return int((instruction.OpCode >> 24) & 0xff)
+func newInstruction1() Instruction {
+	return Instruction{}
+}
+
+func newInstruction2(opType, a, b, c int) Instruction {
+	opCode := (opType << 24) | ((a & 0xFF) << 16) | ((b & 0xFF) << 8) | (c & 0xFF)
+	return Instruction{opCode}
+}
+
+func newInstruction3(opType, a int, b int16) Instruction {
+	opCode := (opType << 24) | ((a & 0xFF) << 16) | (int(b) & 0xFFFF)
+	return Instruction{opCode}
+}
+
+func newInstruction4(opType, a int, b uint16) Instruction {
+	opCode := (opType << 24) | ((a & 0xFF) << 16) | (int(b) & 0xFFFF)
+	return Instruction{opCode}
+}
+
+func (i Instruction) RefillsBx(b int) {
+	i.OpCode = (i.OpCode & 0xFFFF0000) | (b & 0xFFFF)
+}
+
+func GetOpCode(i Instruction) int {
+	return (i.OpCode >> 24) & 0xFF
+}
+
+func GetParamA(i Instruction) int {
+	return (i.OpCode >> 16) & 0xFF
+}
+
+func GetParamB(i Instruction) int {
+	return (i.OpCode >> 8) & 0xFF
+}
+
+func GetParamC(instruction Instruction) int {
+	return instruction.OpCode & 0xFF
+}
+
+func GetParamsBx(i Instruction) int16 {
+	return int16(i.OpCode & 0xFFFF)
+}
+
+func GetParamBx(i Instruction) uint16 {
+	return uint16(i.OpCode & 0xFFFF)
+}
+
+func ABCCode(opType, a, b, c int) Instruction {
+	return newInstruction2(opType, a, b, c)
+}
+
+func ABCode(opType, a, b int) Instruction {
+	return newInstruction2(opType, a, b, 0)
+}
+
+func ACode(opType, a int) Instruction {
+	return newInstruction2(opType, a, 0, 0)
+}
+
+func AsBxCode(opType, a, b int) Instruction {
+	return newInstruction3(opType, a, int16(b))
+}
+
+func ABxCode(opType, a, b int) Instruction {
+	return newInstruction4(opType, a, uint16(b))
 }

@@ -9,8 +9,56 @@ func numberToStr(num *Value) string {
 	// TODO
 }
 
+func getConstValue(i Instruction) *Value {
+
+}
+
+func getRegisterA(i Instruction) *Value {
+
+}
+
+func getRegisterB(i Instruction) *Value {
+
+}
+
+func getRegisterC(i Instruction) *Value {
+
+}
+
+func getUpValueB(i Instruction) {
+
+}
+
+func getRealValue(a *Value) *Value {
+	if a.Type == ValueTUpValue {
+		return a.UpValue.GetValue()
+	} else {
+		return a
+	}
+}
+
+func getCallinfoAndProto(vm VM) {
+	if vm.state.calls.Len() == 0 {
+		panic("assert")
+	}
+	call := vm.state.calls.Back().Value.(*CallInfo)
+	if call.Func_ == nil && call.Func_.Closure == nil {
+		panic("assert")
+	}
+	proto := call.Func_.Closure.GetPrototype()
+	return
+}
+
+func getRegisterABC(i Instruction) (a, b, c *Value) {
+	return getRegisterA(i), getRegisterB(i), getRegisterC(i)
+}
+
 type VM struct {
 	state *State
+}
+
+func NewVM(state *State) VM {
+	return VM{state}
 }
 
 func (vm VM) executeFrame() {
@@ -23,17 +71,43 @@ func (vm VM) executeFrame() {
 		vm.state.CheckRunGC()
 		i := *call.Instruction
 		temp := uintptr(unsafe.Pointer(call.Instruction))
-		temp++
+		temp += unsafe.Sizeof(Instruction{})
 		call.Instruction = (*Instruction)(unsafe.Pointer(temp))
 
-		switch Instruction.GetOpCode(Instruction{}, i) {
+		switch GetOpCode(i) {
 		case OpTypeLoadNil:
+			a = getRegisterA(i)
+			getRealValue(a).SetNil()
 		case OpTypeFillNil:
+			a = getRegisterA(i)
+			b = getRegisterB(i)
+			for uintptr(unsafe.Pointer(a)) < uintptr(unsafe.Pointer(b)) {
+				a.SetNil()
+				a = (*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(a)) + unsafe.Sizeof(Value{})))
+			}
 		case OpTypeLoadBool:
+			a = getRegisterA(i)
+			getRealValue(a).SetBool(GetParamB(i) == 0)
 		case OpTypeLoadInt:
+			a = getRegisterA(i)
+			if uintptr(unsafe.Pointer(call.Instruction)) > uintptr(unsafe.Pointer(call.End)) {
+				panic("assert")
+			}
+			a.Num = (float64)((*call.Instruction).OpCode)
+			a.Type = ValueTNumber
 		case OpTypeLoadConst:
+			a = getRegisterA(i)
+			b = getConstValue(i)
+			*getRealValue(a) = *b
 		case OpTypeMove:
+			a = getRegisterA(i)
+			b = getRegisterB(i)
+			*getRealValue(a) = *getRealValue(b)
 		case OpTypeCall:
+			a = getRegisterA(i)
+			if vm.call(a, i) {
+				return
+			}
 		case OpTypeGetUpvalue:
 		case OpTypeSetUpvalue:
 		case OpTypeGetGlobal:
@@ -135,11 +209,10 @@ func (vm VM) checkTableType(t, k *Value, op, desc string) {
 
 }
 
-func (vm VM) reportTypeError(v *Value, op string) {
-	ns := vm.getOperandNameAndScope(v)
-	pos := vm.getCurrentInstructionPos()
-	panic()
-
+func (vm VM) reportTypeError(v *Value, op string) error {
+	n, s := vm.getOperandNameAndScope(v)
+	pos1, pos2 := vm.getCurrentInstructionPos()
+	return
 }
 
 func (vm VM) Execute() {
