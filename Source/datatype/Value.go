@@ -1,4 +1,4 @@
-package luna
+package datatype
 
 const ExpValueCountAny = -1
 
@@ -19,7 +19,7 @@ const (
 	ValueTCFunction
 )
 
-// Value type of luna
+// Value type of vm
 type Value struct {
 	Obj      *GCObject
 	Str      *String

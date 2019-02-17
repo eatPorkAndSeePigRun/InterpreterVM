@@ -1,11 +1,11 @@
 package Test
 
 import (
-	"InterpreterVM/Source/luna"
+	"InterpreterVM/Source/vm"
 	"container/list"
 )
 
-var gGC luna.GC
+var gGC vm.GC
 var (
 	gGlobalTable    list.List
 	gGlobalFunction list.List

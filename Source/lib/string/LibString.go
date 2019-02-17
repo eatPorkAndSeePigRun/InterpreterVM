@@ -1,7 +1,7 @@
 package string
 
-import "InterpreterVM/Source/luna"
+import "InterpreterVM/Source/vm"
 
-func RegisterLibString(state *luna.State) {
+func RegisterLibString(state *vm.State) {
 
 }

@@ -1,7 +1,7 @@
 package table
 
-import "InterpreterVM/Source/luna"
+import "InterpreterVM/Source/vm"
 
-func RegisterLibTable(state *luna.State)  {
-	
+func RegisterLibTable(state *vm.State) {
+
 }

@@ -1,4 +1,4 @@
-package luna
+package compiler
 
 const (
 	prefixExpTypeNormal = iota

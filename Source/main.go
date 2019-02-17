@@ -6,12 +6,12 @@ import (
 	"InterpreterVM/Source/lib/math"
 	string2 "InterpreterVM/Source/lib/string"
 	"InterpreterVM/Source/lib/table"
-	"InterpreterVM/Source/luna"
+	"InterpreterVM/Source/vm"
 	"fmt"
 	"os"
 )
 
-func repl(state luna.State) {
+func repl(state vm.State) {
 	fmt.Println("Luna 2.0 Copyright (C) 2014")
 
 	for {
@@ -20,8 +20,8 @@ func repl(state luna.State) {
 		var buffer [1024]byte
 		n, err := os.Stdin.Read(buffer[:])
 		if err != nil {
-			fmt.Println(err)	// TODO
-		}else if n == 0 {
+			fmt.Println(err) // TODO
+		} else if n == 0 {
 			break
 		}
 
@@ -29,12 +29,12 @@ func repl(state luna.State) {
 	}
 }
 
-func executeFile(args []string, state luna.State) {
+func executeFile(args []string, state vm.State) {
 	state.DoModule(args[1])
 }
 
 func main() {
-	var state luna.State
+	var state vm.State
 
 	base.RegisterLibBase(&state)
 	io.RegisterLibIO(&state)
@@ -47,6 +47,5 @@ func main() {
 	} else {
 		executeFile(os.Args, state)
 	}
-
 
 }

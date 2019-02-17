@@ -1,4 +1,4 @@
-package luna
+package datatype
 
 type String struct {
 	GCObject

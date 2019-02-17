@@ -1,7 +1,7 @@
 package io
 
-import "InterpreterVM/Source/luna"
+import "InterpreterVM/Source/vm"
 
-func RegisterLibIO(state *luna.State) {
+func RegisterLibIO(state *vm.State) {
 
 }

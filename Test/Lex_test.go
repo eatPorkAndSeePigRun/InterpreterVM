@@ -2,27 +2,27 @@ package Test
 
 import (
 	"InterpreterVM/Source/io/text"
-	"InterpreterVM/Source/luna"
+	"InterpreterVM/Source/vm"
 	"testing"
 )
 
 type lexerWrapper struct {
 	iss   text.InStringStream
-	state luna.State
-	name  luna.String
-	lexer luna.Lexer
+	state vm.State
+	name  vm.String
+	lexer vm.Lexer
 }
 
 func NewLexerWrapper(str string) lexerWrapper {
 	var lw lexerWrapper
 	lw.iss = text.NewInStringStream(str)
-	lw.name = luna.NewString("lex")
-	lw.lexer = luna.NewLexer(&lw.state, &lw.name, lw.iss.GetChar)
+	lw.name = vm.NewString("lex")
+	lw.lexer = vm.NewLexer(&lw.state, &lw.name, lw.iss.GetChar)
 	return lw
 }
 
 func (lw lexerWrapper) GetToken() int {
-	var token luna.TokenDetail
+	var token vm.TokenDetail
 	t, err := lw.lexer.GetToken(&token)
 	if err != nil {
 		panic(err)
@@ -32,7 +32,7 @@ func (lw lexerWrapper) GetToken() int {
 
 func TestLex1(t *testing.T) {
 	lexer := NewLexerWrapper("\r\n\t\v\f")
-	if lexer.GetToken() == luna.TokenEOF {
+	if lexer.GetToken() == vm.TokenEOF {
 		t.Error("lex1 error")
 	}
 }

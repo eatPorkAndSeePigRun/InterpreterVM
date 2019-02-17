@@ -1,4 +1,4 @@
-package luna
+package vm
 
 import "unsafe"
 

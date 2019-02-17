@@ -1,4 +1,4 @@
-package luna
+package datatype
 
 // Function prototype class, all runtime functions(closures) reference this
 // class object. This class contains some static information generated after

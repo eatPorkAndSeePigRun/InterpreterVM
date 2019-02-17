@@ -1,4 +1,4 @@
-package luna
+package vm
 
 const (
 	OpTypeLoadNil      = iota + 1 // A    A: register

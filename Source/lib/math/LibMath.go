@@ -1,7 +1,7 @@
 package math
 
-import "InterpreterVM/Source/luna"
+import "InterpreterVM/Source/vm"
 
-func RegisterLibMath(state *luna.State) {
+func RegisterLibMath(state *vm.State) {
 
 }

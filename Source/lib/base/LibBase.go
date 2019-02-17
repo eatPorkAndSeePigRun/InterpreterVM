@@ -1,7 +1,7 @@
 package base
 
-import "InterpreterVM/Source/luna"
+import "InterpreterVM/Source/vm"
 
-func RegisterLibBase(state *luna.State) {
+func RegisterLibBase(state *vm.State) {
 
 }

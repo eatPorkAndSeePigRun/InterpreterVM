@@ -1,4 +1,4 @@
-package luna
+package compiler
 
 // Lexical block data in LexicalFunction for finding
 type lexicalBlock struct {
