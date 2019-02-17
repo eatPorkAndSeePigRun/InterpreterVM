@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"InterpreterVM/Source/datatype"
 	"container/list"
 	"math"
 	"unsafe"
@@ -27,18 +28,18 @@ type CFunctionError struct {
 }
 
 type State struct {
-	moduleManager *ModuleManager // Manage all modules
-	stringPool    *StringPool    // All strings in the pool
-	gc            *GC            // The GC
+	moduleManager *ModuleManager       // Manage all modules
+	stringPool    *datatype.StringPool // All strings in the pool
+	gc            *datatype.GC         // The GC
 
 	cFuncError CFunctionError // Error of call c function
 
-	stack  Stack     // Stack data
-	calls  list.List // Stack frames
-	global Value     // Global table
+	stack  Stack          // Stack data
+	calls  list.List      // Stack frames, and its element.value is CallInfo
+	global datatype.Value // Global table
 }
 
-func NewState() State {
+func NewState() *State {
 	var s State
 
 	s.stringPool = new(StringPool)

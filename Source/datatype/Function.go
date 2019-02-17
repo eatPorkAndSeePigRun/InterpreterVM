@@ -1,21 +1,27 @@
 package datatype
 
+import "InterpreterVM/Source/vm"
+
 // Function prototype class, all runtime functions(closures) reference this
 // class object. This class contains some static information generated after
 // parse.
 type Function struct {
-	GCObject
-	opCodes     []Instruction  // function instruction opCodes
-	opCodeLines []int64        // opCodes' line number
-	constValues []Value        // const values in function
-	localVars   []localVarInfo // debug info
-	childFuncs  []*Function    // child functions
-	upValues    []UpValueInfo  // upValues
-	module      *String        // function define module name
-	line        int64          // function define line at module
-	args        int64          // count of args
-	isVararg    bool           // has '...' param or not
-	superior    *Function      // superior function pointer
+	gcObjectField
+	opCodes     []vm.Instruction // function instruction opCodes
+	opCodeLines []int64          // opCodes' line number
+	constValues []Value          // const values in function
+	localVars   []localVarInfo   // debug info
+	childFuncs  []*Function      // child functions
+	upvalues    []UpvalueInfo    // upvalues
+	module      *String          // function define module name
+	line        int64            // function define line at module
+	args        int64            // count of args
+	isVararg    bool             // has '...' param or not
+	superior    *Function        // superior function pointer
+}
+
+func NewFunction() *Function {
+	return &Function{}
 }
 
 // For debug
@@ -26,11 +32,11 @@ type localVarInfo struct {
 	EndPc      int64   // The past-the-end instruction index
 }
 
-type UpValueInfo struct {
-	// UpValue name
+type UpvalueInfo struct {
+	// Upvalue name
 	Name *String
 
-	// This upValue is parent function's local variable
+	// This upvalue is parent function's local variable
 	// when value is true, otherwise it is parent parent
 	// (... and so on) function's local variable
 	ParentLocal bool
@@ -41,7 +47,7 @@ type UpValueInfo struct {
 	RegisterIndex int64
 }
 
-func (f Function) Accept(v GCObjectVisitor) {
+func (f *Function) Accept(v GCObjectVisitor) {
 	if v.VisitFunction(&f) {
 		if f.module != nil {
 			f.module.Accept(v)
@@ -62,14 +68,14 @@ func (f Function) Accept(v GCObjectVisitor) {
 			child.Accept(v)
 		}
 
-		for _, upValue := range f.upValues {
-			upValue.Name.Accept(v)
+		for _, upvalue := range f.upvalues {
+			upvalue.Name.Accept(v)
 		}
 	}
 }
 
 // Get function instructions and size
-func (f Function) GetOpCodes() *Instruction {
+func (f *Function) GetOpCodes() *Instruction {
 	if len(f.opCodes) == 0 {
 		return nil
 	} else {
@@ -77,97 +83,97 @@ func (f Function) GetOpCodes() *Instruction {
 	}
 }
 
-func (f Function) OpCodeSize() int64 {
+func (f *Function) OpCodeSize() int64 {
 	return int64(len(f.opCodes))
 }
 
 // Get instruction pointer, then it can be changed
-func (f Function) GetMutableInstruction(index int64) *Instruction {
+func (f *Function) GetMutableInstruction(index int64) *Instruction {
 	return &f.opCodes[index]
 }
 
 // Add instruction, 'line' is line number of the instruction 'i',
 // return index of the new instruction
-func (f Function) AddInstruction(i Instruction, line int64) int64 {
+func (f *Function) AddInstruction(i Instruction, line int64) int64 {
 	f.opCodes = append(f.opCodes, i)
 	f.opCodeLines = append(f.opCodeLines, line)
 	return int64(len(f.opCodes)) - 1
 }
 
 // Set this function has vararg
-func (f Function) SetHasVararg() {
+func (f *Function) SetHasVararg() {
 	f.isVararg = true
 }
 
 // Get this function has vararg
-func (f Function) HasVararg() bool {
+func (f *Function) HasVararg() bool {
 	return f.isVararg
 }
 
 // Add fixed arg count
-func (f Function) AddFixedArgCount(count int64) {
+func (f *Function) AddFixedArgCount(count int64) {
 	f.args += count
 }
 
 // get fixed arg count
-func (f Function) FixedArgCount() int64 {
+func (f *Function) FixedArgCount() int64 {
 	return f.args
 }
 
 // Set module and function define start line
-func (f Function) SetModuleName(module *String) {
+func (f *Function) SetModuleName(module *String) {
 	f.module = module
 }
 
-func (f Function) SetLine(line int64) {
+func (f *Function) SetLine(line int64) {
 	f.line = line
 }
 
 // Set superior function
-func (f Function) SetSuperior(superior *Function) {
+func (f *Function) SetSuperior(superior *Function) {
 	f.superior = superior
 }
 
 // Add const number and return index of the const value
-func (f Function) AddConstNumber(num float64) int64 {
+func (f *Function) AddConstNumber(num float64) int64 {
 	v := Value{Type: ValueTNumber, Num: num}
 	return f.AddConstValue(&v)
 }
 
 // Add const String and return index of the const value
-func (f Function) AddConstString(str *String) int64 {
+func (f *Function) AddConstString(str *String) int64 {
 	v := Value{Type: ValueTString, Str: str}
 	return f.AddConstValue(&v)
 }
 
 // Add const Value and return index of the const value
-func (f Function) AddConstValue(v *Value) int64 {
+func (f *Function) AddConstValue(v *Value) int64 {
 	f.constValues = append(f.constValues, *v)
 	return int64(len(f.constValues)) - 1
 }
 
 // Add local variable debug info
-func (f Function) AddLocalVar(name *String, registerId, beginPc, endPc int64) {
+func (f *Function) AddLocalVar(name *String, registerId, beginPc, endPc int64) {
 	f.localVars = append(f.localVars, localVarInfo{name, registerId, beginPc, endPc})
 }
 
 // Add child function, return index of the function
-func (f Function) AddChildFunction(child *Function) int64 {
+func (f *Function) AddChildFunction(child *Function) int64 {
 	f.childFuncs = append(f.childFuncs, child)
 	return int64(len(f.childFuncs)) - 1
 }
 
-// Add a upValue, return index of the upValue
-func (f Function) AddUpValue(name *String, parentLocal bool, registerIndex int64) int64 {
-	f.upValues = append(f.upValues, UpValueInfo{name, parentLocal, registerIndex})
-	return int64(len(f.upValues)) - 1
+// Add a upvalue, return index of the upvalue
+func (f *Function) AddUpvalue(name *String, parentLocal bool, registerIndex int64) int64 {
+	f.upvalues = append(f.upvalues, UpvalueInfo{name, parentLocal, registerIndex})
+	return int64(len(f.upvalues)) - 1
 }
 
-// Get upValue index when the name upValue existed, otherwise return -1
-func (f Function) SearchUpValue(name *String) int64 {
-	size := len(f.upValues)
+// Get upvalue index when the name upvalue existed, otherwise return -1
+func (f *Function) SearchUpvalue(name *String) int64 {
+	size := len(f.upvalues)
 	for i := 0; i < size; i++ {
-		if f.upValues[i].Name == name {
+		if f.upvalues[i].Name == name {
 			return int64(i)
 		}
 	}
@@ -176,12 +182,12 @@ func (f Function) SearchUpValue(name *String) int64 {
 }
 
 // Get child function by index
-func (f Function) GetChildFunction(index int64) *Function {
+func (f *Function) GetChildFunction(index int64) *Function {
 	return f.childFuncs[index]
 }
 
 // Search local variable name from local variable list
-func (f Function) SearchLocalVar(registerId, pc int64) *String {
+func (f *Function) SearchLocalVar(registerId, pc int64) *String {
 	var name *String
 	endPc := int(^uint(0) >> 1)
 	beginPc := ^endPc
@@ -201,68 +207,72 @@ func (f Function) SearchLocalVar(registerId, pc int64) *String {
 }
 
 // Get const Value by index
-func (f Function) GetConstValue(i int64) *Value {
+func (f *Function) GetConstValue(i int64) *Value {
 	return &f.constValues[i]
 }
 
 // Get instruction line by instruction index
-func (f Function) GetInstructionLine(i int64) int64 {
+func (f *Function) GetInstructionLine(i int64) int64 {
 	return f.opCodeLines[i]
 }
 
-// Get upValue count
-func (f Function) GetUpValueCount() int {
-	return len(f.upValues)
+// Get upvalue count
+func (f *Function) GetUpvalueCount() int {
+	return len(f.upvalues)
 }
 
-// Get upValue info by index
-func (f Function) GetUpValue(index int64) *UpValueInfo {
-	return &f.upValues[index]
+// Get upvalue info by index
+func (f *Function) GetUpvalue(index int64) *UpvalueInfo {
+	return &f.upvalues[index]
 }
 
 // Get module name
-func (f Function) GetModule() *String {
+func (f *Function) GetModule() *String {
 	return f.module
 }
 
 // Get line of function define
-func (f Function) GetLine() int64 {
+func (f *Function) GetLine() int64 {
 	return f.line
 }
 
 // All runtime function are closures, this class object pointer to a
-// prototype Function object and its upValues.
+// prototype Function object and its upvalues.
 type Closure struct {
-	GCObject
+	gcObjectField
 	prototype *Function  // prototype Function
-	upValues  []*UpValue // upValues
+	upvalues  []*Upvalue // upvalues
 }
 
-func (c Closure) Accept(visitor GCObjectVisitor) {
+func NewClosure() *Closure {
+	return &Closure{}
+}
+
+func (c *Closure) Accept(visitor GCObjectVisitor) {
 	if visitor.VisitClosure(&c) {
 		c.prototype.Accept(visitor)
-		for _, v := range c.upValues {
+		for _, v := range c.upvalues {
 			v.Accept(visitor)
 		}
 	}
 }
 
 // Get closure prototype Function
-func (c Closure) GetPrototype() *Function {
+func (c *Closure) GetPrototype() *Function {
 	return c.prototype
 }
 
 // Set closure prototype Function
-func (c Closure) SetPrototype(prototype *Function) {
+func (c *Closure) SetPrototype(prototype *Function) {
 	c.prototype = prototype
 }
 
-// Add upValue
-func (c Closure) AddUpValue(upValue *UpValue) {
-	c.upValues = append(c.upValues, upValue)
+// Add upvalue
+func (c *Closure) AddUpvalue(upvalue *Upvalue) {
+	c.upvalues = append(c.upvalues, upvalue)
 }
 
-// Get upValue by index
-func (c Closure) GetUpValue(index int64) *UpValue {
-	return c.upValues[index]
+// Get upvalue by index
+func (c *Closure) GetUpvalue(index int64) *Upvalue {
+	return c.upvalues[index]
 }

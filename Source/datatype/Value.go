@@ -1,8 +1,10 @@
 package datatype
 
-const ExpValueCountAny = -1
+import "InterpreterVM/Source/vm"
 
-type CFunctionType func(*State) int64
+const ExpvalueCountAny = -1
+
+type CFunctionType func(state *vm.State) int64
 
 type ValueT int64
 
@@ -13,18 +15,18 @@ const (
 	ValueTObj
 	ValueTString
 	ValueTClosure
-	ValueTUpValue
+	ValueTUpvalue
 	ValueTTable
-	ValueTUserDate
+	ValueTUserData
 	ValueTCFunction
 )
 
 // Value type of vm
 type Value struct {
-	Obj      *GCObject
+	Obj      GCObject
 	Str      *String
 	Closure  *Closure
-	UpValue  *UpValue
+	Upvalue  *Upvalue
 	Table    *Table
 	UserDate *UserData
 	CFunc    CFunctionType
@@ -54,41 +56,41 @@ func NewValueClosure(closure *Closure) Value {
 	return Value{Closure: closure, Type: ValueTClosure}
 }
 
-func NewValueUpValue(upValue *UpValue) Value {
-	return Value{UpValue: upValue, Type: ValueTUpValue}
+func NewValueUpvalue(upvalue *Upvalue) Value {
+	return Value{Upvalue: upvalue, Type: ValueTUpvalue}
 }
 
 func NewValueTable(table *Table) Value {
 	return Value{Table: table, Type: ValueTTable}
 }
 
-func NewUserData(userData *UserData) Value {
-	return Value{UserDate: userData, Type: ValueTUserDate}
+func NewValueUserData(userData *UserData) Value {
+	return Value{UserDate: userData, Type: ValueTUserData}
 }
 
 func NewValueCFunction(cFunc CFunctionType) Value {
 	return Value{CFunc: cFunc, Type: ValueTCFunction}
 }
 
-func (v Value) SetNil() {
+func (v *Value) SetNil() {
 	v.Obj = nil
 	v.Type = ValueTNil
 }
 
-func (v Value) SetBool(bValue bool) {
+func (v *Value) SetBool(bValue bool) {
 	v.BValue = bValue
 	v.Type = ValueTBool
 }
 
-func (v Value) IsNil() bool {
+func (v *Value) IsNil() bool {
 	return v.Type == ValueTNil
 }
 
-func (v Value) IsFalse() bool {
+func (v *Value) IsFalse() bool {
 	return (v.Type == ValueTNil) || (v.Type == ValueTBool && !v.BValue)
 }
 
-func (v Value) Accept(visitor GCObjectVisitor) {
+func (v *Value) Accept(visitor GCObjectVisitor) {
 	switch v.Type {
 	case ValueTNil, ValueTBool, ValueTNumber, ValueTCFunction:
 	case ValueTObj:
@@ -97,20 +99,51 @@ func (v Value) Accept(visitor GCObjectVisitor) {
 		v.Str.Accept(visitor)
 	case ValueTClosure:
 		v.Closure.Accept(visitor)
-	case ValueTUpValue:
-		v.UpValue.Accept(visitor)
+	case ValueTUpvalue:
+		v.Upvalue.Accept(visitor)
 	case ValueTTable:
 		v.Table.Accept(visitor)
-	case ValueTUserDate:
+	case ValueTUserData:
 		v.UserDate.Accept(visitor)
 	}
 }
 
-func (v Value) TypeName() string {
+func (v *Value) TypeName() string {
 	return v.GetTypeName(v.Type)
 }
 
-func (v Value) GetTypeName(vType ValueT) string {
+func (v *Value) isEqual(v1 *Value) bool {
+	if v.Type != v1.Type {
+		return false
+	}
+
+	switch v.Type {
+	case ValueTNil:
+		return true
+	case ValueTBool:
+		return v.BValue == v1.BValue
+	case ValueTNumber:
+		return v.Num == v1.Num
+	case ValueTObj:
+		return v.Obj == v1.Obj
+	case ValueTString:
+		return v.Str == v1.Str
+	case ValueTClosure:
+		return v.Closure == v1.Closure
+	case ValueTUpvalue:
+		return v.Upvalue == v1.Upvalue
+	case ValueTTable:
+		return v.Table == v1.Table
+	case ValueTUserData:
+		return v.UserDate == v1.UserDate
+		//case ValueTCFunction:
+		//	return v.CFunc == v1.CFunc
+	}
+
+	return false
+}
+
+func (v *Value) GetTypeName(vType ValueT) string {
 	switch vType {
 	case ValueTNil:
 		return "nil"
@@ -124,7 +157,7 @@ func (v Value) GetTypeName(vType ValueT) string {
 		return "string"
 	case ValueTClosure:
 		return "function"
-	case ValueTUpValue:
+	case ValueTUpvalue:
 		return "upvalue"
 	case ValueTTable:
 		return "table"

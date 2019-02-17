@@ -3,14 +3,18 @@ package datatype
 type Destroyer func(*int32)
 
 type UserData struct {
-	GCObject
+	gcObjectField
 	userData  *int32    // Point to user data
 	metaTable *Table    // MetaTable of user data
 	destroyer Destroyer // User data destroyer, call it when user data destroy
 	destroyed bool      // Whether user data destroyed
 }
 
-func (u UserData) Accept(visitor GCObjectVisitor) {
+func NewUserData() *UserData {
+	return &UserData{}
+}
+
+func (u *UserData) Accept(visitor GCObjectVisitor) {
 	if visitor.VisitUserData(&u) {
 		u.metaTable.Accept(visitor)
 	}
@@ -29,10 +33,10 @@ func (u *UserData) MarkDestroyed() {
 	u.destroyed = true
 }
 
-func (u UserData) GetData() *int32 {
+func (u *UserData) GetData() *int32 {
 	return u.userData
 }
 
-func (u UserData) GetMetaTable() *Table {
+func (u *UserData) GetMetaTable() *Table {
 	return u.metaTable
 }

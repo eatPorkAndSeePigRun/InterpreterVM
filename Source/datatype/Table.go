@@ -8,22 +8,26 @@ func isInt(x float64) bool {
 
 // Table has array part and hash table part.
 type Table struct {
-	GCObject
+	gcObjectField
 	array *array // array part of table
 	hash  *hash  // hash table of table
+}
+
+func NewTable() *Table {
+	return &Table{}
 }
 
 type array []Value
 type hash map[Value]Value
 
 // Combine AppendToArray and MergeFromHashToArray
-func (t Table) appendAndMergeFromHashToArray(value Value) {
+func (t *Table) appendAndMergeFromHashToArray(value Value) {
 	t.appendToArray(value)
 	t.mergeFromHashToArray()
 }
 
 // Append value to array.
-func (t Table) appendToArray(value Value) {
+func (t *Table) appendToArray(value Value) {
 	if t.array == nil {
 		t.array = new(array)
 	}
@@ -32,7 +36,7 @@ func (t Table) appendToArray(value Value) {
 
 // Try to move values from hash to array which keys start from
 // ArraySize() + 1
-func (t Table) mergeFromHashToArray() {
+func (t *Table) mergeFromHashToArray() {
 	index := t.ArraySize()
 	index++
 	key := Value{Num: float64(index), Type: ValueTNumber}
@@ -45,7 +49,7 @@ func (t Table) mergeFromHashToArray() {
 
 // Move hash table key-value pair to array which key is number and key
 // fit with array, return true if move success.
-func (t Table) moveHashToArray(key Value) bool {
+func (t *Table) moveHashToArray(key Value) bool {
 	if t.hash == nil {
 		return false
 	}
@@ -60,8 +64,8 @@ func (t Table) moveHashToArray(key Value) bool {
 	return true
 }
 
-func (t Table) Accept(v GCObjectVisitor) {
-	if v.VisitTable(&t) {
+func (t *Table) Accept(v GCObjectVisitor) {
+	if v.VisitTable(t) {
 		// Visit all array members
 		if t.array != nil {
 			for _, value := range *t.array {
@@ -82,7 +86,7 @@ func (t Table) Accept(v GCObjectVisitor) {
 // Set array value by index, return true if success.
 // 'index' start from 1, if 'index' == ArraySize() + 1,
 // then append value to array.
-func (t Table) SetArrayValue(index int64, value Value) bool {
+func (t *Table) SetArrayValue(index int64, value Value) bool {
 	if index < 1 {
 		return false
 	}
@@ -105,7 +109,7 @@ func (t Table) SetArrayValue(index int64, value Value) bool {
 // otherwise shifting up all values which start from 'index',
 // and insert value to 'index' of array.
 // Return true when insert success.
-func (t Table) InsertArrayValue(index int64, value Value) bool {
+func (t *Table) InsertArrayValue(index int64, value Value) bool {
 	if index < 1 {
 		return false
 	}
@@ -132,7 +136,7 @@ func (t Table) InsertArrayValue(index int64, value Value) bool {
 // Erase the value by 'index' in array if 'index' is legal,
 // shifting down all values which start from 'index' + 1.
 // Return true when erase success.
-func (t Table) EraseArrayValue(index int64) bool {
+func (t *Table) EraseArrayValue(index int64) bool {
 	if index < 1 || index > t.ArraySize() {
 		return false
 	}
@@ -144,7 +148,7 @@ func (t Table) EraseArrayValue(index int64) bool {
 // Add key-value into table.
 // If key is number and key fit with array, then insert into array,
 // otherwise insert into hash table.
-func (t Table) SetValue(key, value Value) {
+func (t *Table) SetValue(key, value Value) {
 	// Try array part
 	if key.Type == ValueTNumber && isInt(key.Num) {
 		if t.SetArrayValue(int64(key.Num), value) {
@@ -182,7 +186,7 @@ func (t Table) SetValue(key, value Value) {
 // if key is number, then get the value from array when key number
 // is fit with array as index, otherwise try search in hash table.
 // Return value is 'nil' if 'key' is not existed.
-func (t Table) GetValue(key Value) Value {
+func (t *Table) GetValue(key Value) Value {
 	// Get from array first
 	if key.Type == ValueTNumber && isInt(key.Num) {
 		index := int64(key.Num)
@@ -204,7 +208,7 @@ func (t Table) GetValue(key Value) Value {
 }
 
 // Get first key-value pair of table, return true if table is not empty.
-func (t Table) FirstKeyValue(key, value *Value) bool {
+func (t *Table) FirstKeyValue(key, value *Value) bool {
 	// array part
 	if t.ArraySize() > 0 {
 		key.Num = 1 // first element index
@@ -227,7 +231,7 @@ func (t Table) FirstKeyValue(key, value *Value) bool {
 
 // Get the next key-value pair by current 'key', return false if there
 // is no key-value pair any more.
-func (t Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
+func (t *Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 	// array part
 	if key.Type == ValueTNumber && isInt(key.Num) {
 		index := int64(key.Num) + 1
@@ -244,7 +248,7 @@ func (t Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 	if ok {
 		isV := false
 		for nk, nv := range *t.hash {
-			if nv == v {
+			if nv.isEqual(&v) {
 				isV = true
 			}
 			if isV == true {
@@ -265,7 +269,7 @@ func (t Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 }
 
 // Return the number of array part elements.
-func (t Table) ArraySize() int64 {
+func (t *Table) ArraySize() int64 {
 	if t.array != nil {
 		return int64(len(*t.array))
 	} else {

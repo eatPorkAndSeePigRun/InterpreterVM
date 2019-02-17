@@ -90,7 +90,7 @@ func newFunctionNameData() functionNameData {
 	return functionNameData{}
 }
 
-func SemanticAnalysis(root *SyntaxTree, state *State) {
+func SemanticAnalysis(root SyntaxTree, state *State) {
 	if root == nil && state == nil {
 		panic("assert")
 	}

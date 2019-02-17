@@ -1,7 +1,7 @@
 package datatype
 
 type String struct {
-	GCObject
+	gcObjectField
 	inHeap    uint8  // String in heap or not
 	strBuffer string // Buffer for short string
 	str       string // Pointer to heap which stored long string
@@ -9,10 +9,10 @@ type String struct {
 	hash_     int64  // Hash value of string
 }
 
-func NewString(str string) String {
+func NewString(str string) *String {
 	var s String
 	s.SetValue(str)
-	return s
+	return &s
 }
 
 // Calculate hash of string
@@ -24,8 +24,8 @@ func (s *String) hash(str string) {
 	}
 }
 
-func (s String) Accept(v GCObjectVisitor) {
-	v.VisitString(&s)
+func (s *String) Accept(v GCObjectVisitor) {
+	v.VisitString(s)
 }
 
 func (s String) GetHash() int64 {
