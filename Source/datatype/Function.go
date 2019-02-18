@@ -8,14 +8,14 @@ import "InterpreterVM/Source/vm"
 type Function struct {
 	gcObjectField
 	opCodes     []vm.Instruction // function instruction opCodes
-	opCodeLines []int64          // opCodes' line number
+	opCodeLines []int            // opCodes' line number
 	constValues []Value          // const values in function
 	localVars   []localVarInfo   // debug info
 	childFuncs  []*Function      // child functions
 	upvalues    []UpvalueInfo    // upvalues
 	module      *String          // function define module name
-	line        int64            // function define line at module
-	args        int64            // count of args
+	line        int              // function define line at module
+	args        int              // count of args
 	isVararg    bool             // has '...' param or not
 	superior    *Function        // superior function pointer
 }
@@ -44,11 +44,11 @@ type UpvalueInfo struct {
 	// Register id when this upvalue is parent function's
 	// local variable, otherwise it is index of upvalue list
 	// of parent function
-	RegisterIndex int64
+	RegisterIndex int
 }
 
 func (f *Function) Accept(v GCObjectVisitor) {
-	if v.VisitFunction(&f) {
+	if v.VisitFunction(f) {
 		if f.module != nil {
 			f.module.Accept(v)
 		}
@@ -75,7 +75,7 @@ func (f *Function) Accept(v GCObjectVisitor) {
 }
 
 // Get function instructions and size
-func (f *Function) GetOpCodes() *Instruction {
+func (f *Function) GetOpCodes() *vm.Instruction {
 	if len(f.opCodes) == 0 {
 		return nil
 	} else {
@@ -83,21 +83,21 @@ func (f *Function) GetOpCodes() *Instruction {
 	}
 }
 
-func (f *Function) OpCodeSize() int64 {
-	return int64(len(f.opCodes))
+func (f *Function) OpCodeSize() int {
+	return len(f.opCodes)
 }
 
 // Get instruction pointer, then it can be changed
-func (f *Function) GetMutableInstruction(index int64) *Instruction {
+func (f *Function) GetMutableInstruction(index int64) *vm.Instruction {
 	return &f.opCodes[index]
 }
 
 // Add instruction, 'line' is line number of the instruction 'i',
 // return index of the new instruction
-func (f *Function) AddInstruction(i Instruction, line int64) int64 {
+func (f *Function) AddInstruction(i vm.Instruction, line int) int {
 	f.opCodes = append(f.opCodes, i)
 	f.opCodeLines = append(f.opCodeLines, line)
-	return int64(len(f.opCodes)) - 1
+	return len(f.opCodes) - 1
 }
 
 // Set this function has vararg
@@ -111,12 +111,12 @@ func (f *Function) HasVararg() bool {
 }
 
 // Add fixed arg count
-func (f *Function) AddFixedArgCount(count int64) {
+func (f *Function) AddFixedArgCount(count int) {
 	f.args += count
 }
 
 // get fixed arg count
-func (f *Function) FixedArgCount() int64 {
+func (f *Function) FixedArgCount() int {
 	return f.args
 }
 
@@ -125,7 +125,7 @@ func (f *Function) SetModuleName(module *String) {
 	f.module = module
 }
 
-func (f *Function) SetLine(line int64) {
+func (f *Function) SetLine(line int) {
 	f.line = line
 }
 
@@ -135,21 +135,21 @@ func (f *Function) SetSuperior(superior *Function) {
 }
 
 // Add const number and return index of the const value
-func (f *Function) AddConstNumber(num float64) int64 {
+func (f *Function) AddConstNumber(num float64) int {
 	v := Value{Type: ValueTNumber, Num: num}
 	return f.AddConstValue(&v)
 }
 
 // Add const String and return index of the const value
-func (f *Function) AddConstString(str *String) int64 {
+func (f *Function) AddConstString(str *String) int {
 	v := Value{Type: ValueTString, Str: str}
 	return f.AddConstValue(&v)
 }
 
 // Add const Value and return index of the const value
-func (f *Function) AddConstValue(v *Value) int64 {
+func (f *Function) AddConstValue(v *Value) int {
 	f.constValues = append(f.constValues, *v)
-	return int64(len(f.constValues)) - 1
+	return len(f.constValues) - 1
 }
 
 // Add local variable debug info
@@ -158,23 +158,23 @@ func (f *Function) AddLocalVar(name *String, registerId, beginPc, endPc int64) {
 }
 
 // Add child function, return index of the function
-func (f *Function) AddChildFunction(child *Function) int64 {
+func (f *Function) AddChildFunction(child *Function) int {
 	f.childFuncs = append(f.childFuncs, child)
-	return int64(len(f.childFuncs)) - 1
+	return len(f.childFuncs) - 1
 }
 
 // Add a upvalue, return index of the upvalue
-func (f *Function) AddUpvalue(name *String, parentLocal bool, registerIndex int64) int64 {
+func (f *Function) AddUpvalue(name *String, parentLocal bool, registerIndex int64) int {
 	f.upvalues = append(f.upvalues, UpvalueInfo{name, parentLocal, registerIndex})
-	return int64(len(f.upvalues)) - 1
+	return len(f.upvalues) - 1
 }
 
 // Get upvalue index when the name upvalue existed, otherwise return -1
-func (f *Function) SearchUpvalue(name *String) int64 {
+func (f *Function) SearchUpvalue(name *String) int {
 	size := len(f.upvalues)
 	for i := 0; i < size; i++ {
 		if f.upvalues[i].Name == name {
-			return int64(i)
+			return i
 		}
 	}
 
@@ -182,12 +182,12 @@ func (f *Function) SearchUpvalue(name *String) int64 {
 }
 
 // Get child function by index
-func (f *Function) GetChildFunction(index int64) *Function {
+func (f *Function) GetChildFunction(index int) *Function {
 	return f.childFuncs[index]
 }
 
 // Search local variable name from local variable list
-func (f *Function) SearchLocalVar(registerId, pc int64) *String {
+func (f *Function) SearchLocalVar(registerId, pc int) *String {
 	var name *String
 	endPc := int(^uint(0) >> 1)
 	beginPc := ^endPc
@@ -207,12 +207,12 @@ func (f *Function) SearchLocalVar(registerId, pc int64) *String {
 }
 
 // Get const Value by index
-func (f *Function) GetConstValue(i int64) *Value {
+func (f *Function) GetConstValue(i int) *Value {
 	return &f.constValues[i]
 }
 
 // Get instruction line by instruction index
-func (f *Function) GetInstructionLine(i int64) int64 {
+func (f *Function) GetInstructionLine(i int) int {
 	return f.opCodeLines[i]
 }
 
@@ -222,7 +222,7 @@ func (f *Function) GetUpvalueCount() int {
 }
 
 // Get upvalue info by index
-func (f *Function) GetUpvalue(index int64) *UpvalueInfo {
+func (f *Function) GetUpvalue(index int) *UpvalueInfo {
 	return &f.upvalues[index]
 }
 
@@ -249,7 +249,7 @@ func NewClosure() *Closure {
 }
 
 func (c *Closure) Accept(visitor GCObjectVisitor) {
-	if visitor.VisitClosure(&c) {
+	if visitor.VisitClosure(c) {
 		c.prototype.Accept(visitor)
 		for _, v := range c.upvalues {
 			v.Accept(visitor)
@@ -273,6 +273,6 @@ func (c *Closure) AddUpvalue(upvalue *Upvalue) {
 }
 
 // Get upvalue by index
-func (c *Closure) GetUpvalue(index int64) *Upvalue {
+func (c *Closure) GetUpvalue(index int) *Upvalue {
 	return c.upvalues[index]
 }

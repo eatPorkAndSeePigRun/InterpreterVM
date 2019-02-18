@@ -94,7 +94,7 @@ type GC struct {
 type RootTravelType func(GCObjectVisitor)
 type GCObjectDeleter func(GCObject, int)
 
-func NewGC(deleter GCObjectDeleter, log bool) GC {
+func NewGC(deleter GCObjectDeleter, log bool) *GC {
 	gc := GC{objDeleter: deleter}
 	gc.gen0.thresholdCount = kGen0InitThresholdCount
 	gc.gen1.thresholdCount = kGen1InitThresholdCount
@@ -106,7 +106,7 @@ func NewGC(deleter GCObjectDeleter, log bool) GC {
 		}
 		gc.logStream = f
 	}
-	return gc
+	return &gc
 }
 
 func (gc *GC) ResetDeleter(objDeleter GCObjectDeleter) {

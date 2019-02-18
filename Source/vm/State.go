@@ -9,7 +9,7 @@ import (
 
 // Error type reported by called c function
 const (
-	CFunctionErrorTypeNoError = iota
+	CFunctionErrorTypeNoError = iota + 1
 	CFunctionErrorTypeArgCount
 	CFunctionErrorTypeArgType
 )
@@ -21,10 +21,14 @@ const (
 
 // Error reported by called c function
 type CFunctionError struct {
-	type_ int
-	//ExpectArgCount int64
-	//ArgIndex       int64
-	//ExpectType     ValueT
+	eType          int
+	ExpectArgCount int
+	ArgIndex       int
+	ExpectType     int
+}
+
+func NewCFunctionError() CFunctionError {
+	return CFunctionError{eType: CFunctionErrorTypeNoError}
 }
 
 type State struct {
@@ -42,123 +46,130 @@ type State struct {
 func NewState() *State {
 	var s State
 
-	s.stringPool = new(StringPool)
+	s.stringPool = datatype.NewStringPool()
 
 	// Init GC
-	deleter := func(obj *GCObject, type_ int) {
-		if type_ == GCObjectTypeString {
-			s.stringPool.DeleteString((*String)(unsafe.Pointer(obj)))
+	deleter := func(obj datatype.GCObject, objType int) {
+		if objType == datatype.GCObjectTypeString {
+			s.stringPool.DeleteString(obj.(*datatype.String))
 		}
 		obj = nil
 	}
-	s.gc = NewGC(deleter, false)
+	s.gc = datatype.NewGC(deleter, false)
 	root := s.fullGCRoot
 	s.gc.SetRootTraveller(root, root)
 
 	// New global table
 	s.global.Table = s.NewTable()
-	s.global.Type = ValueTTable
+	s.global.Type = datatype.ValueTTable
 
 	// New table for store metaTables
-	k := Value{Type: ValueTString, Str: s.GetString(metaTables)}
-	v := Value{Type: ValueTTable, Table: s.NewTable()}
+	k := datatype.NewValueString(s.GetString(metaTables))
+	v := datatype.NewValueTable(s.NewTable())
 	s.global.Table.SetValue(k, v)
 
 	// New table for store modules
-	k = Value{Type: ValueTString, Str: s.GetString(modulesTable)}
-	v = Value{Type: ValueTTable, Table: s.NewTable()}
+	k = datatype.NewValueString(s.GetString(modulesTable))
+	v = datatype.NewValueTable(s.NewTable())
 	s.global.Table.SetValue(k, v)
 
 	// Init module manager
 	s.moduleManager = NewModuleManager(&s, v.Table)
 
-	return s
+	return &s
 }
 
 // Full GC root
-func (s State) fullGCRoot(v GCObjectVisitor) {
+func (s *State) fullGCRoot(v datatype.GCObjectVisitor) {
 	// Visit global table
 	s.global.Accept(v)
 
 	// Visit stack values
-	for _, value := range s.stack.Stack_ {
-		value.Accept(v)
+	for index := range s.stack.ValueStack {
+		s.stack.ValueStack[index].Accept(v)
 	}
 
 	// Visit call info
 	for e := s.calls.Front(); e != nil; e = e.Next() {
-		call := e.Value.(CallInfo)
+		call := e.Value.(*CallInfo)
 		call.Register.Accept(v)
-		if call.Func_ != nil {
-			call.Func_.Accept(v)
+		if call.Func != nil {
+			call.Func.Accept(v)
 		}
 	}
 }
 
 // For CallFunction
-func (s State) callClosure(f *Value, expectResult int64) {
+func (s *State) callClosure(f *datatype.Value, expectResult int) {
 	var callee CallInfo
 	calleeProto := f.Closure.GetPrototype()
-	callee.Func_ = f
+	callee.Func = f
 	callee.Instruction = calleeProto.GetOpCodes()
-	callee.End = callee.Instruction + calleeProto.OpCodeSize()
+	callee.End = iPointerAdd(callee.Instruction, calleeProto.OpCodeSize())
 	callee.ExpectResult = expectResult
 
-	arg := f + 1
+	arg := vPointerAdd(f, 1)
 	fixedArgs := calleeProto.FixedArgCount()
 
 	// Fixed arg start from base register
 	if calleeProto.HasVararg() {
 		top := s.stack.Top
 		callee.Register = top
-		count := top - arg
+		count := int((uintptr(unsafe.Pointer(top)) - uintptr(unsafe.Pointer(arg))) /
+			unsafe.Sizeof(datatype.Value{}))
 		for i := 0; i < count && i < int(fixedArgs); i++ {
 			*top = *arg
-			top++
-			arg++
+			top = vPointerAdd(top, 1)
+			arg = vPointerAdd(arg, 1)
 		}
 	} else {
 		callee.Register = arg
 		// fill nil for overflow args
-		newTop := callee.Register + fixedArgs
-		for arg := s.stack.Top; arg < newTop; arg++ {
+		newTop := vPointerAdd(callee.Register, fixedArgs)
+		arg := s.stack.Top
+		for uintptr(unsafe.Pointer(arg)) < uintptr(unsafe.Pointer(newTop)) {
 			arg.SetNil()
+			arg = vPointerAdd(arg, 1)
 		}
 	}
 
-	s.stack.SetNewTop(callee.Register + fixedArgs)
-	s.calls.PushBack(callee)
+	s.stack.SetNewTop(vPointerAdd(callee.Register, fixedArgs))
+	s.calls.PushBack(&callee)
 }
 
-func (s State) callCFunction(f *Value, expectResult int64) {
+func (s *State) callCFunction(f *datatype.Value, expectResult int) {
 	// Push the c function CallInfo
-	callee := CallInfo{Register: f + 1, Func_: f, ExpectResult: expectResult}
-	s.calls.PushBack(callee)
+	callee := CallInfo{Register: vPointerAdd(f, 1), Func: f, ExpectResult: expectResult}
+	s.calls.PushBack(&callee)
 
 	// Call c function
 	cfunc := f.CFunc
-	s.checkCFunctionError()
-	resCount := cfunc(&s)
-	s.checkCFunctionError()
+	if err := s.checkCFunctionError(); err != nil {
+		panic(err)
+	}
+	resCount := cfunc(s)
+	if err := s.checkCFunctionError(); err != nil {
+		panic(err)
+	}
 
-	var src *Value
+	var src *datatype.Value
 	if resCount > 0 {
-		src = s.stack.Top - resCount
+		src = vPointerAdd(s.stack.Top, resCount)
 	}
 
 	// Copy c function result to caller stack
 	dst := f
-	if expectResult == ExpValueCountAny {
+	if expectResult == datatype.ExpValueCountAny {
 		for i := 0; i < int(resCount); i++ {
 			*dst = *src
-			dst++
-			src++
+			dst = vPointerAdd(dst, 1)
+			src = vPointerAdd(src, 1)
 		}
 	} else {
 		count := int(math.Min(float64(expectResult), float64(resCount)))
 		for i := 0; i < count; i++ {
 			dst.SetNil()
-			dst++
+			dst = vPointerAdd(dst, 1)
 		}
 	}
 
@@ -167,41 +178,44 @@ func (s State) callCFunction(f *Value, expectResult int64) {
 	s.stack.SetNewTop(dst)
 
 	// Pop the c function CallInfo
-	s.calls.Back() // TODO
+	s.calls.Remove(s.calls.Back())
 }
 
-func (s State) checkCFunctionError() {
-	err := s.GetCFunctionErrorData()
-	if err.type_ == CFunctionErrorTypeNoError {
-		return
+func (s *State) checkCFunctionError() error {
+	e := s.GetCFunctionErrorData()
+	if e.eType == CFunctionErrorTypeNoError {
+		return nil
 	}
 
-	var exp CallCFuncException
-	if err.type_ == CFunctionErrorTypeArgCount {
-		//TODO exp=
-	} else if err.type_ == CFunctionErrorTypeArgType {
+	var exp error
+	if e.eType == CFunctionErrorTypeArgCount {
+		exp = NewCallCFuncError("expect ", e.ExpectArgCount, " arguments")
+	} else if e.eType == CFunctionErrorTypeArgType {
 		call := s.calls.Back().Value.(*CallInfo)
-		arg := call.Register + err.ArgIndex
-		// TODO exp =
+		arg := vPointerAdd(call.Register, e.ArgIndex)
+		exp = NewCallCFuncError("argument #", e.ArgIndex+1,
+			" is a ", arg.TypeName(), " value, expect a ",
+			(e.ExpectType), " value")
+		// TODO
 	}
 
 	// Pop the c function CallInfo
-	s.calls.Back() // TODO
-	panic("exp")
+	s.calls.Remove(s.calls.Back())
+	panic(exp)
 }
 
 // Get the table which stores all metaTables
-func (s State) getMetaTables() *Table {
-	k := Value{Type: ValueTString, Str: s.GetString(metaTables)}
+func (s *State) getMetaTables() *datatype.Table {
+	k := datatype.NewValueString(s.GetString(metaTables))
 	v := s.global.Table.GetValue(k)
-	if v.Type != ValueTTable {
+	if v.Type != datatype.ValueTTable {
 		panic("assert")
 	}
 	return v.Table
 }
 
 // Check module loaded or not
-func (s State) IsModuleLoaded(moduleName string) bool {
+func (s *State) IsModuleLoaded(moduleName string) bool {
 	return s.moduleManager.IsLoaded(moduleName)
 }
 
@@ -210,29 +224,35 @@ func (s State) IsModuleLoaded(moduleName string) bool {
 func (s *State) LoadModule(moduleName string) {
 	value := s.moduleManager.GetModuleClosure(moduleName)
 	if value.IsNil() {
-		s.moduleManager.LoadModule(moduleName)
+		panic(s.moduleManager.LoadModule(moduleName))
 	} else {
 		*s.stack.Top = value
-		s.stack.Top++
+		s.stack.Top = vPointerAdd(s.stack.Top, 1)
 	}
 }
 
-// Load module and call the module function when the module
-// loaded success.
-func (s State) DoModule(moduleName string) {
+// Load module and call the module function when the module loaded success.
+func (s *State) DoModule(moduleName string) {
 	s.LoadModule(moduleName)
-	if s.CallFunction(s.stack.top-1, 0, 0) {
-		vm := VM{&s}
+	isTrue, err := s.CallFunction(vPointerAdd(s.stack.Top, -1), 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	if isTrue {
+		vm := NewVM(s)
 		vm.Execute()
 	}
 }
 
-// Load string and call the string function when the string
-// loaded success.
-func (s State) DoString(str, name string) {
+// Load string and call the string function when the string loaded success.
+func (s *State) DoString(str, name string) {
 	s.moduleManager.LoadString(str, name)
-	if s.CallFunction(s.stack.top-1, 0, 0) {
-		vm := VM{&s}
+	isTrue, err := s.CallFunction(vPointerAdd(s.stack.Top, -1), 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	if isTrue {
+		vm := NewVM(s)
 		vm.Execute()
 	}
 }
@@ -241,31 +261,31 @@ func (s State) DoString(str, name string) {
 // If f is a closure, then create a stack frame and return true,
 // call VM::Execute() to execute the closure instructions.
 // Return false when f is a c function.
-func (s State) CallFunction(f *Value, argCount int, expectResult int64) (bool, error) {
-	if !(f.Type == ValueTClosure || f.Type == ValueTCFunction) {
+func (s *State) CallFunction(f *datatype.Value, argCount int, expectResult int) (bool, error) {
+	if f.Type != datatype.ValueTClosure && f.Type != datatype.ValueTCFunction {
 		panic("assert")
 	}
 
 	// Set stack top when argCount is fixed
-	if argCount != ExpValueCountAny {
-		s.stack.top = f + 1 + argCount
+	if argCount != datatype.ExpValueCountAny {
+		s.stack.Top = vPointerAdd(f, 1+argCount)
 	}
 
-	if f.Type == ValueTClosure {
+	if f.Type == datatype.ValueTClosure {
 		// We need enter next ExecuteFrame
 		s.callClosure(f, expectResult)
-		return true
+		return true, nil
 	} else {
 		s.callCFunction(f, expectResult)
-		return false
+		return false, nil
 	}
 }
 
 // New GCObjects
-func (s State) GetString(str string) *String {
+func (s *State) GetString(str string) *datatype.String {
 	str2 := s.stringPool.GetString(str)
 	if str2 == nil {
-		str2 = s.gc.NewString()
+		str2 = s.gc.NewString(datatype.GCGen0)
 		str2.SetValue(str)
 		s.stringPool.AddString(str2)
 	}
@@ -273,32 +293,37 @@ func (s State) GetString(str string) *String {
 }
 
 // New GCObjects
-func (s State) NewFunction() *Function {
-	return s.gc.NewFunction()
+func (s *State) NewTable() *datatype.Table {
+	return s.gc.NewTAble(datatype.GCGen0)
 }
 
 // New GCObjects
-func (s State) NewClosure() *Closure {
-	return s.gc.NewClosure()
+func (s *State) NewFunction() *datatype.Function {
+	return s.gc.NewFunction(datatype.GCGen2)
 }
 
 // New GCObjects
-func (s State) NewUpValue() *UpValue {
-	return s.gc.NewUpValue()
+func (s *State) NewClosure() *datatype.Closure {
+	return s.gc.NewClosure(datatype.GCGen0)
 }
 
 // New GCObjects
-func (s State) NewTable() *Table {
-	return s.gc.NewTAble()
+func (s *State) NewUpvalue() *datatype.Upvalue {
+	return s.gc.NewUpvalue(datatype.GCGen0)
 }
 
 // New GCObjects
-func (s State) NewUserData() *UserData {
-	return s.gc.NewUserData()
+func (s *State) NewString() *datatype.String {
+	return s.gc.NewString(datatype.GCGen0)
+}
+
+// New GCObjects
+func (s *State) NewUserData() *datatype.UserData {
+	return s.gc.NewUserData(datatype.GCGen0)
 }
 
 // Get current CallInfo
-func (s State) GetCurrentCall() *CallInfo {
+func (s *State) GetCurrentCall() *CallInfo {
 	if s.calls.Len() == 0 {
 		return nil
 	}
@@ -306,53 +331,53 @@ func (s State) GetCurrentCall() *CallInfo {
 }
 
 // Get the global table value
-func (s State) GetGlobal() *Value {
+func (s *State) GetGlobal() *datatype.Value {
 	return &s.global
 }
 
 // Return metaTable, create when metaTable not existed
-func (s State) GetMetaTable(metaTableName string) *Table {
-	k := Value{Type: ValueTString, Str: s.GetString(metaTableName)}
+func (s *State) GetMetaTable(metaTableName string) *datatype.Table {
+	k := datatype.NewValueString(s.GetString(metaTableName))
 	metaTables := s.getMetaTables()
 	metaTable := metaTables.GetValue(k)
 
 	// Create table when metaTable not existed
-	if metaTable.Type == ValueTNil {
-		metaTable.Type = ValueTTable
+	if metaTable.Type == datatype.ValueTNil {
+		metaTable.Type = datatype.ValueTTable
 		metaTable.Table = s.NewTable()
 		metaTables.SetValue(k, metaTable)
 	}
 
-	if metaTable.Type != ValueTTable {
+	if metaTable.Type != datatype.ValueTTable {
 		panic("assert")
 	}
 	return metaTable.Table
 }
 
 // Erase metaTable
-func (s State) EraseMetaTable(metaTableName string) {
-	k := Value{Type: ValueTString, Str: s.GetString(metaTableName)}
-	var null Value
+func (s *State) EraseMetaTable(metaTableName string) {
+	k := datatype.NewValueString(s.GetString(metaTableName))
+	var null datatype.Value
 	metaTables := s.getMetaTables()
 	metaTables.SetValue(k, null)
 }
 
 // For call c function
 func (s *State) ClearCFunctionError() {
-	s.cFuncError.type_ = CFunctionErrorTypeNoError
+	s.cFuncError.eType = CFunctionErrorTypeNoError
 }
 
 // Error data for call c function
-func (s State) GetCFunctionErrorData() *CFunctionError {
+func (s *State) GetCFunctionErrorData() *CFunctionError {
 	return &s.cFuncError
 }
 
 // Get the GC
-func (s State) GetGC() *GC {
+func (s *State) GetGC() *datatype.GC {
 	return s.gc
 }
 
 // Check and run GC
-func (s State) CheckRunGC() {
+func (s *State) CheckRunGC() {
 	s.gc.CheckGC()
 }

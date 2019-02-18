@@ -2,11 +2,9 @@ package datatype
 
 import "InterpreterVM/Source/vm"
 
-const ExpvalueCountAny = -1
+const ExpValueCountAny = -1
 
-type CFunctionType func(state *vm.State) int64
-
-type ValueT int64
+type CFunctionType func(state *vm.State) int
 
 const (
 	ValueTNil = iota
@@ -33,7 +31,7 @@ type Value struct {
 	Num      float64
 	BValue   bool
 
-	Type ValueT
+	Type int
 }
 
 func NewValueObj() Value {
@@ -112,7 +110,7 @@ func (v *Value) TypeName() string {
 	return v.GetTypeName(v.Type)
 }
 
-func (v *Value) isEqual(v1 *Value) bool {
+func (v *Value) IsEqual(v1 *Value) bool {
 	if v.Type != v1.Type {
 		return false
 	}
@@ -143,7 +141,7 @@ func (v *Value) isEqual(v1 *Value) bool {
 	return false
 }
 
-func (v *Value) GetTypeName(vType ValueT) string {
+func (v *Value) GetTypeName(vType int) string {
 	switch vType {
 	case ValueTNil:
 		return "nil"
@@ -161,7 +159,7 @@ func (v *Value) GetTypeName(vType ValueT) string {
 		return "upvalue"
 	case ValueTTable:
 		return "table"
-	case ValueTUserDate:
+	case ValueTUserData:
 		return "userdata"
 	default:
 		return "unknown type"

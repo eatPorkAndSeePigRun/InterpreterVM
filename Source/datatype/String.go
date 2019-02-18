@@ -2,7 +2,7 @@ package datatype
 
 type String struct {
 	gcObjectField
-	inHeap    uint8  // String in heap or not
+	inHeap    byte   // String in heap or not
 	strBuffer string // Buffer for short string
 	str       string // Pointer to heap which stored long string
 	length    int    // Length of string
@@ -67,5 +67,33 @@ func (s *String) SetValue(str string) {
 		s.str = str
 		s.inHeap = 1
 		s.hash(s.str)
+	}
+}
+
+func (s String) IsEqual(s1 String) bool {
+	if s.inHeap != 0 && s.str != s1.str {
+		return false
+	} else if s.inHeap != 0 && s.strBuffer != s1.strBuffer {
+		return false
+	}
+	return s.hash_ == s1.hash_ && s.length == s1.length
+}
+
+func (s String) IsLess(s1 String) bool {
+	var s_, s1_ string
+	if s.inHeap != 0 {
+		s_ = s.str
+	} else {
+		s_ = s.strBuffer
+	}
+	if s1.inHeap != 0 {
+		s1_ = s1.str
+	} else {
+		s1_ = s1.strBuffer
+	}
+	if s_ == s1_ {
+		return s.length < s1.length
+	} else {
+		return s1_ < s_
 	}
 }

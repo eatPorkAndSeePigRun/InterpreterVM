@@ -34,7 +34,7 @@ func executeFile(args []string, state vm.State) {
 }
 
 func main() {
-	var state vm.State
+	var state = *vm.NewState()
 
 	base.RegisterLibBase(&state)
 	io.RegisterLibIO(&state)
