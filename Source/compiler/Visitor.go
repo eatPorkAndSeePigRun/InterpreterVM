@@ -11,7 +11,7 @@ type Visitor interface {
 	VisitWhileStatement(*WhileStatement, unsafe.Pointer)
 	VisitRepeatStatement(*RepeatStatement, unsafe.Pointer)
 	VisitIfStatement(*IfStatement, unsafe.Pointer)
-	VisitElseIfStatement(*ElseStatement, unsafe.Pointer)
+	VisitElseIfStatement(*ElseIfStatement, unsafe.Pointer)
 	VisitElseStatement(*ElseStatement, unsafe.Pointer)
 	VisitNumericForStatement(*NumericForStatement, unsafe.Pointer)
 	VisitGenericForStatement(*GenericForStatement, unsafe.Pointer)

@@ -15,7 +15,7 @@ func NewUserData() *UserData {
 }
 
 func (u *UserData) Accept(visitor GCObjectVisitor) {
-	if visitor.VisitUserData(&u) {
+	if visitor.VisitUserData(u) {
 		u.metaTable.Accept(visitor)
 	}
 }

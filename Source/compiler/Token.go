@@ -22,6 +22,11 @@ const (
 	TokenNot
 	TokenOr
 	TokenRepeat
+	TokenReturn
+	TokenThen
+	TokenTrue
+	TokenUntil
+	TokenWhile
 	TokenId
 	TokenString
 	TokenNumber
@@ -51,14 +56,18 @@ type TokenDetail struct {
 	Token  int              // token value
 }
 
+func NewTokenDetail() *TokenDetail {
+	return &TokenDetail{Token: TokenEOF}
+}
+
 func GetTokenStr(t TokenDetail) string {
 	var str string
 
-	token := t.token
+	token := t.Token
 	if token == TokenNumber {
-		str = strconv.FormatFloat(t.number, 'f', 6, 64)
+		str = strconv.FormatFloat(t.Number, 'f', 6, 64)
 	} else if (token == TokenId) || (token == TokenString) {
-		str = t.str.GetStdString()
+		str = t.Str.GetStdString()
 	} else if (token >= TokenAnd) && (token <= TokenEOF) {
 		str = tokenStr[token-TokenAnd]
 	} else {

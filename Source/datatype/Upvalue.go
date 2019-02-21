@@ -10,7 +10,7 @@ func NewUpvalue() *Upvalue {
 }
 
 func (u *Upvalue) Accept(v GCObjectVisitor) {
-	if v.VisitUpvalue(&u) {
+	if v.VisitUpvalue(u) {
 		u.value.Accept(v)
 	}
 }
