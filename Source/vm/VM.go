@@ -337,7 +337,7 @@ func (vm *VM) call(a *datatype.Value, i Instruction) (bool, error) {
 
 	argCount := GetParamB(i) - 1
 	expectResult := GetParamC(i) - 1
-	res, err := vm.state.CallFunction(a, argCount, int64(expectResult))
+	res, err := vm.state.CallFunction(a, argCount, expectResult)
 	if e, ok := err.(*CallCFuncError); ok {
 		// Calculate line number of the call
 		pos1, pos2 := vm.getCurrentInstructionPos()

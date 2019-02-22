@@ -31,3 +31,9 @@
 ## interface
 
 1. Commma-ok断言，如`v, ok := element.(T)`
+
+## 垃圾回收
+
+1. Go语言的`defer`和`runtime.SetFinalizer`两个基础特性, 来解决资源的自动回收问题
+
+2. 在使用`runtime.SetFinalizer`时, 需要注意的地方是尽量要用指针访问 内部资源.

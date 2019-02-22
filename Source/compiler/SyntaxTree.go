@@ -433,12 +433,13 @@ func (i *IndexAccessor) Accept(v Visitor, data unsafe.Pointer) {
 }
 
 type MemberAccessor struct {
-	Table  SyntaxTree
-	Member TokenDetail
+	Table    SyntaxTree
+	Member   TokenDetail
+	Semantic int // For semantic
 }
 
 func NewMemberAccessor(table SyntaxTree, member TokenDetail) *MemberAccessor {
-	return &MemberAccessor{table, member}
+	return &MemberAccessor{table, member, SemanticOpNone}
 }
 
 func (m *MemberAccessor) Accept(v Visitor, data unsafe.Pointer) {

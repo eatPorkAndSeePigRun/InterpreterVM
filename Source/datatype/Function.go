@@ -88,7 +88,7 @@ func (f *Function) OpCodeSize() int {
 }
 
 // Get instruction pointer, then it can be changed
-func (f *Function) GetMutableInstruction(index int64) *vm.Instruction {
+func (f *Function) GetMutableInstruction(index int) *vm.Instruction {
 	return &f.opCodes[index]
 }
 
@@ -153,7 +153,7 @@ func (f *Function) AddConstValue(v *Value) int {
 }
 
 // Add local variable debug info
-func (f *Function) AddLocalVar(name *String, registerId, beginPc, endPc int64) {
+func (f *Function) AddLocalVar(name *String, registerId, beginPc, endPc int) {
 	f.localVars = append(f.localVars, localVarInfo{name, registerId, beginPc, endPc})
 }
 
@@ -164,7 +164,7 @@ func (f *Function) AddChildFunction(child *Function) int {
 }
 
 // Add a upvalue, return index of the upvalue
-func (f *Function) AddUpvalue(name *String, parentLocal bool, registerIndex int64) int {
+func (f *Function) AddUpvalue(name *String, parentLocal bool, registerIndex int) int {
 	f.upvalues = append(f.upvalues, UpvalueInfo{name, parentLocal, registerIndex})
 	return len(f.upvalues) - 1
 }
@@ -232,7 +232,7 @@ func (f *Function) GetModule() *String {
 }
 
 // Get line of function define
-func (f *Function) GetLine() int64 {
+func (f *Function) GetLine() int {
 	return f.line
 }
 
