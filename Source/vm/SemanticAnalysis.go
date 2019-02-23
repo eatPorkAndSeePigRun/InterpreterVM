@@ -55,7 +55,7 @@ func (sav *semanticAnalysisVisitor) VisitBlock(block *Block, data unsafe.Pointer
 func (sav *semanticAnalysisVisitor) VisitReturnStatement(retStmt *ReturnStatement, data unsafe.Pointer) {
 	if retStmt.ExpList != nil {
 		var expListData expListData
-		retStmt.ExpList.Accept(sav, &expListData)
+		retStmt.ExpList.Accept(sav, unsafe.Pointer(&expListData))
 		retStmt.ExpValueCount = expListData.ExpValueCount
 	}
 }
@@ -76,7 +76,7 @@ func (sav *semanticAnalysisVisitor) VisitWhileStatement(whileStmt *WhileStatemen
 	oldLoop := sav.GetLoopAST()
 	NewGuard(func() { sav.SetLoopAST(whileStmt) }, func() { sav.SetLoopAST(oldLoop) })
 	eVarData := newExpVarData(SemanticOpRead)
-	whileStmt.Exp.Accept(sav, &eVarData)
+	whileStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
 	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
 	whileStmt.Block.Accept(sav, nil)
@@ -89,12 +89,12 @@ func (sav *semanticAnalysisVisitor) VisitRepeatStatement(repeatStmt *RepeatState
 
 	eVarData := newExpVarData(SemanticOpRead)
 	repeatStmt.Block.Accept(sav, nil)
-	repeatStmt.Exp.Accept(sav, &eVarData)
+	repeatStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 }
 
 func (sav *semanticAnalysisVisitor) VisitIfStatement(ifStmt *IfStatement, data unsafe.Pointer) {
 	eVarData := newExpVarData(SemanticOpRead)
-	ifStmt.Exp.Accept(sav, &eVarData)
+	ifStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
 	{
 		NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
@@ -108,7 +108,7 @@ func (sav *semanticAnalysisVisitor) VisitIfStatement(ifStmt *IfStatement, data u
 
 func (sav *semanticAnalysisVisitor) VisitElseIfStatement(elseifStmt *ElseIfStatement, data unsafe.Pointer) {
 	eVarData := newExpVarData(SemanticOpRead)
-	elseifStmt.Exp.Accept(sav, &eVarData)
+	elseifStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
 	{
 		NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
@@ -129,10 +129,10 @@ func (sav *semanticAnalysisVisitor) VisitNumericForStatement(numFor *NumericForS
 	oldLoop := sav.GetLoopAST()
 	NewGuard(func() { sav.SetLoopAST(numFor) }, func() { sav.SetLoopAST(oldLoop) })
 	eVarData := newExpVarData(SemanticOpRead)
-	numFor.Exp1.Accept(sav, &eVarData)
-	numFor.Exp2.Accept(sav, &eVarData)
+	numFor.Exp1.Accept(sav, unsafe.Pointer(eVarData))
+	numFor.Exp2.Accept(sav, unsafe.Pointer(eVarData))
 	if numFor.Exp3 != nil {
-		numFor.Exp3.Accept(sav, &eVarData)
+		numFor.Exp3.Accept(sav, unsafe.Pointer(eVarData))
 	}
 
 	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
@@ -144,17 +144,17 @@ func (sav *semanticAnalysisVisitor) VisitGenericForStatement(genFor *GenericForS
 	oldLoop := sav.GetLoopAST()
 	NewGuard(func() { sav.SetLoopAST(genFor) }, func() { sav.SetLoopAST(oldLoop) })
 	var eListData expListData
-	genFor.ExpList.Accept(sav, &eListData)
+	genFor.ExpList.Accept(sav, unsafe.Pointer(&eListData))
 
 	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
 	var nameListData nameListData
-	genFor.NameList.Accept(sav, &nameListData)
+	genFor.NameList.Accept(sav, unsafe.Pointer(&nameListData))
 	genFor.Block.Accept(sav, nil)
 }
 
 func (sav *semanticAnalysisVisitor) VisitFunctionStatement(funcStmt *FunctionStatement, data unsafe.Pointer) {
 	var nameData functionNameData
-	funcStmt.FuncName.Accept(sav, &nameData)
+	funcStmt.FuncName.Accept(sav, unsafe.Pointer(&nameData))
 
 	// Set FunctionBody has 'self' param when FunctionName has member token
 	if nameData.HasMemberToken {
@@ -183,26 +183,26 @@ func (sav *semanticAnalysisVisitor) VisitLocalFunctionStatement(lFuncStmt *Local
 func (sav *semanticAnalysisVisitor) VisitLocalNameListStatement(lNameListStmt *LocalNameListStatement, data unsafe.Pointer) {
 	if lNameListStmt.ExpList != nil {
 		var eListData expListData
-		lNameListStmt.ExpList.Accept(sav, &eListData)
+		lNameListStmt.ExpList.Accept(sav, unsafe.Pointer(&eListData))
 	}
 
 	var nameListData nameListData
-	lNameListStmt.NameList.Accept(sav, &nameListData)
+	lNameListStmt.NameList.Accept(sav, unsafe.Pointer(&nameListData))
 	lNameListStmt.NameCount = nameListData.NameCount
 }
 
 func (sav *semanticAnalysisVisitor) VisitAssignmentStatement(assignStmt *AssignmentStatement, data unsafe.Pointer) {
 	var vListData varListData
 	var eListData expListData
-	assignStmt.VarList.Accept(sav, &vListData)
-	assignStmt.ExpList.Accept(sav, &eListData)
+	assignStmt.VarList.Accept(sav, unsafe.Pointer(&vListData))
+	assignStmt.ExpList.Accept(sav, unsafe.Pointer(&eListData))
 	assignStmt.VarCount = vListData.VarCount
 }
 
 func (sav *semanticAnalysisVisitor) VisitVarList(varList *VarList, data unsafe.Pointer) {
 	eVarData := newExpVarData(SemanticOpWrite)
 	for i := range varList.VarList {
-		varList.VarList[i].Accept(sav, &eVarData)
+		varList.VarList[i].Accept(sav, unsafe.Pointer(eVarData))
 	}
 	(*varListData)(data).VarCount = len(varList.VarList)
 }
@@ -253,8 +253,8 @@ func (sav *semanticAnalysisVisitor) VisitBinaryExpression(binaryExp *BinaryExpre
 	// Binary expression is read semantic
 	lExpVarData := newExpVarData(SemanticOpRead)
 	rExpVarData := newExpVarData(SemanticOpRead)
-	binaryExp.Left.Accept(sav, &lExpVarData)
-	binaryExp.Right.Accept(sav, &rExpVarData)
+	binaryExp.Left.Accept(sav, unsafe.Pointer(lExpVarData))
+	binaryExp.Right.Accept(sav, unsafe.Pointer(rExpVarData))
 
 	parentExpVarData := (*expVarData)(data)
 	switch binaryExp.OpToken.Token {
@@ -300,7 +300,7 @@ func (sav *semanticAnalysisVisitor) VisitBinaryExpression(binaryExp *BinaryExpre
 func (sav *semanticAnalysisVisitor) VisitUnaryExpression(unaryExp *UnaryExpression, data unsafe.Pointer) {
 	// Unary expression is read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	unaryExp.Exp.Accept(sav, &eVarData)
+	unaryExp.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
 	// Expression type
 	if eVarData.ExpType != ExpTypeUnknown {
@@ -348,7 +348,7 @@ func (sav *semanticAnalysisVisitor) VisitFunctionBody(funcBody *FunctionBody, da
 func (sav *semanticAnalysisVisitor) VisitParamList(parList *ParamList, data unsafe.Pointer) {
 	if parList.NameList != nil {
 		var nameListData nameListData
-		parList.NameList.Accept(sav, &nameListData)
+		parList.NameList.Accept(sav, unsafe.Pointer(&nameListData))
 		parList.FixArgCount = nameListData.NameCount
 	}
 
@@ -378,20 +378,20 @@ func (sav *semanticAnalysisVisitor) VisitTableDefine(tableDef *TableDefine, data
 func (sav *semanticAnalysisVisitor) VisitTableIndexField(tableIField *TableIndexField, data unsafe.Pointer) {
 	// Table Index and Value expressions are read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	tableIField.Index.Accept(sav, &eVarData)
-	tableIField.Value.Accept(sav, &eVarData)
+	tableIField.Index.Accept(sav, unsafe.Pointer(eVarData))
+	tableIField.Value.Accept(sav, unsafe.Pointer(eVarData))
 }
 
 func (sav *semanticAnalysisVisitor) VisitTableNameField(tableNField *TableNameField, data unsafe.Pointer) {
 	// Table Value expression is read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	tableNField.Value.Accept(sav, &eVarData)
+	tableNField.Value.Accept(sav, unsafe.Pointer(eVarData))
 }
 
 func (sav *semanticAnalysisVisitor) VisitTableArrayField(tableAField *TableArrayField, data unsafe.Pointer) {
 	// Table Value expression is read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	tableAField.Value.Accept(sav, &eVarData)
+	tableAField.Value.Accept(sav, unsafe.Pointer(eVarData))
 }
 
 func (sav *semanticAnalysisVisitor) VisitIndexAccessor(iAccessor *IndexAccessor, data unsafe.Pointer) {
@@ -400,8 +400,8 @@ func (sav *semanticAnalysisVisitor) VisitIndexAccessor(iAccessor *IndexAccessor,
 
 	// Table and Index expression are read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	iAccessor.Table.Accept(sav, &eVarData)
-	iAccessor.Index.Accept(sav, &eVarData)
+	iAccessor.Table.Accept(sav, unsafe.Pointer(eVarData))
+	iAccessor.Index.Accept(sav, unsafe.Pointer(eVarData))
 }
 
 func (sav *semanticAnalysisVisitor) VisitMemberAccessor(mAccessor *MemberAccessor, data unsafe.Pointer) {
@@ -410,14 +410,14 @@ func (sav *semanticAnalysisVisitor) VisitMemberAccessor(mAccessor *MemberAccesso
 
 	// Table expression is read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	mAccessor.Table.Accept(sav, &eVarData)
+	mAccessor.Table.Accept(sav, unsafe.Pointer(eVarData))
 }
 
 func (sav *semanticAnalysisVisitor) VisitNormalFuncCall(nFuncCall *NormalFuncCall, data unsafe.Pointer) {
 	// Function call must be read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	nFuncCall.Caller.Accept(sav, &eVarData)
-	nFuncCall.Args.Accept(sav, &eVarData)
+	nFuncCall.Caller.Accept(sav, unsafe.Pointer(eVarData))
+	nFuncCall.Args.Accept(sav, unsafe.Pointer(eVarData))
 
 	if data != nil {
 		(*expVarData)(data).ResultsAnyCount = true
@@ -427,8 +427,8 @@ func (sav *semanticAnalysisVisitor) VisitNormalFuncCall(nFuncCall *NormalFuncCal
 func (sav *semanticAnalysisVisitor) VisitMemberFuncCall(mFuncCall *MemberFuncCall, data unsafe.Pointer) {
 	// Function call must be read semantic
 	eVarData := newExpVarData(SemanticOpRead)
-	mFuncCall.Caller.Accept(sav, &eVarData)
-	mFuncCall.Args.Accept(sav, &eVarData)
+	mFuncCall.Caller.Accept(sav, unsafe.Pointer(eVarData))
+	mFuncCall.Args.Accept(sav, unsafe.Pointer(eVarData))
 
 	if data != nil {
 		(*expVarData)(data).ResultsAnyCount = true
@@ -439,12 +439,12 @@ func (sav *semanticAnalysisVisitor) VisitFuncCallArgs(callArgs *FuncCallArgs, da
 	if callArgs.Type == ArgTypeExpList {
 		if callArgs.Arg != nil {
 			var expListData expListData
-			callArgs.Arg.Accept(sav, &expListData)
+			callArgs.Arg.Accept(sav, unsafe.Pointer(&expListData))
 			callArgs.ArgValueCount = expListData.ExpValueCount
 		}
 	} else {
 		expVarData := newExpVarData(SemanticOpRead)
-		callArgs.Arg.Accept(sav, &expVarData)
+		callArgs.Arg.Accept(sav, unsafe.Pointer(expVarData))
 		callArgs.ArgValueCount = 1
 	}
 }
@@ -458,13 +458,13 @@ func (sav *semanticAnalysisVisitor) VisitExpressionList(expList *ExpressionList,
 	size := len(expList.ExpList) - 1
 	for i := 0; i < size; i++ {
 		expVarData := newExpVarData(SemanticOpRead)
-		expList.ExpList[i].Accept(sav, &expVarData)
+		expList.ExpList[i].Accept(sav, unsafe.Pointer(expVarData))
 	}
 
 	// If the last expression in list which has any count value results,
 	// then this expression list has any count value results also
 	expVarData := newExpVarData(SemanticOpRead)
-	expList.ExpList[size].Accept(sav, &expVarData)
+	expList.ExpList[size].Accept(sav, unsafe.Pointer(expVarData))
 	if expVarData.ResultsAnyCount {
 		(*expListData)(data).ExpValueCount = ExpValueCountAny
 	} else {

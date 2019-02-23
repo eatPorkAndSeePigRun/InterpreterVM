@@ -124,7 +124,7 @@ func (cgv *codeGenerateVisitor) VisitReturnStatement(retStmt *ReturnStatement, d
 			panic(err)
 		}
 		eListData := newCgExpListData(registerId, ExpValueCountAny)
-		retStmt.ExpList.Accept(cgv, &eListData)
+		retStmt.ExpList.Accept(cgv, unsafe.Pointer(eListData))
 	}
 
 	function := cgv.GetCurrentFunction()
@@ -156,7 +156,7 @@ func (cgv *codeGenerateVisitor) VisitWhileStatement(whileStmt *WhileStatement, d
 		panic(err)
 	}
 	eVarData := newCgExpVarData(registerId, registerId+1)
-	whileStmt.Exp.Accept(cgv, &eVarData)
+	whileStmt.Exp.Accept(cgv, unsafe.Pointer(eVarData))
 
 	// Jump to loop tail when expression is false
 	function := cgv.GetCurrentFunction()
@@ -187,7 +187,7 @@ func (cgv *codeGenerateVisitor) VisitRepeatStatement(repeatStmt *RepeatStatement
 		panic(err)
 	}
 	eVarData := newCgExpVarData(registerId, registerId+1)
-	repeatStmt.Exp.Accept(cgv, &eVarData)
+	repeatStmt.Exp.Accept(cgv, unsafe.Pointer(eVarData))
 
 	// Jump to head when exp value is true
 	function := cgv.GetCurrentFunction()
@@ -231,20 +231,20 @@ func (cgv *codeGenerateVisitor) VisitNumericForStatement(numFor *NumericForState
 		r := cgv.GetNextRegisterId()
 		NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 		nameExpData := newCgExpVarData(varRegister, varRegister+1)
-		numFor.Exp1.Accept(cgv, &nameExpData)
+		numFor.Exp1.Accept(cgv, unsafe.Pointer(nameExpData))
 	}
 	{
 		r := cgv.GetNextRegisterId()
 		NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 		limitExpData := newCgExpVarData(limitRegister, limitRegister+1)
-		numFor.Exp2.Accept(cgv, &limitExpData)
+		numFor.Exp2.Accept(cgv, unsafe.Pointer(limitExpData))
 	}
 	{
 		r := cgv.GetNextRegisterId()
 		NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 		if numFor.Exp3 != nil {
 			stepExpData := newCgExpVarData(stepRegister, stepRegister+1)
-			numFor.Exp3.Accept(cgv, &stepExpData)
+			numFor.Exp3.Accept(cgv, unsafe.Pointer(stepExpData))
 		} else {
 			// Default step is 1
 			instruction := ACode(OpTypeLoadInt, stepRegister)
@@ -308,7 +308,7 @@ func (cgv *codeGenerateVisitor) VisitGenericForStatement(genFor *GenericForState
 	}
 	varRegister, err := cgv.GenerateRegisterId()
 	eListData := newCgExpListData(funcRegister, varRegister+1)
-	genFor.ExpList.Accept(cgv, &eListData)
+	genFor.ExpList.Accept(cgv, unsafe.Pointer(eListData))
 
 	function := cgv.GetCurrentFunction()
 	line := genFor.Line
@@ -319,7 +319,7 @@ func (cgv *codeGenerateVisitor) VisitGenericForStatement(genFor *GenericForState
 		// Alloc registers for names
 		nameStart := cgv.GetNextRegisterId()
 		nameListData := newCgNameListData(false)
-		genFor.NameList.Accept(cgv, &nameListData)
+		genFor.NameList.Accept(cgv, unsafe.Pointer(nameListData))
 		nameEnd := cgv.GetNextRegisterId()
 		if nameStart >= nameEnd {
 			panic("assert")
@@ -382,10 +382,10 @@ func (cgv *codeGenerateVisitor) VisitFunctionStatement(funcStmt *FunctionStateme
 		panic(err)
 	}
 	eVarData := newCgExpVarData(funcRegister, funcRegister+1)
-	funcStmt.FuncBody.Accept(cgv, &eVarData)
+	funcStmt.FuncBody.Accept(cgv, unsafe.Pointer(eVarData))
 
 	nameData := newCgFunctionNameData(funcRegister)
-	funcStmt.FuncName.Accept(cgv, &nameData)
+	funcStmt.FuncName.Accept(cgv, unsafe.Pointer(nameData))
 }
 
 func (cgv *codeGenerateVisitor) VisitFunctionName(funcName *FunctionName, data unsafe.Pointer) {
@@ -497,7 +497,7 @@ func (cgv *codeGenerateVisitor) VisitLocalFunctionStatement(lFuncStmt *LocalFunc
 	}
 	cgv.InsertName(lFuncStmt.Name.Str, registerId)
 	eVarData := newCgExpVarData(registerId, registerId+1)
-	lFuncStmt.FuncBody.Accept(cgv, &eVarData)
+	lFuncStmt.FuncBody.Accept(cgv, unsafe.Pointer(eVarData))
 }
 
 func (cgv *codeGenerateVisitor) VisitLocalNameListStatement(lNameListStmt *LocalNameListStatement, data unsafe.Pointer) {
@@ -514,12 +514,12 @@ func (cgv *codeGenerateVisitor) VisitLocalNameListStatement(lNameListStmt *Local
 			func() { cgv.ResetRegisterIdGenerator(startRegister) })
 
 		eListData := newCgExpListData(startRegister, endRegister)
-		lNameListStmt.ExpList.Accept(cgv, &eListData)
+		lNameListStmt.ExpList.Accept(cgv, unsafe.Pointer(eListData))
 	}
 
 	// NameList need init itself when ExpList is not existed
 	nameListData := newCgNameListData(lNameListStmt.ExpList == nil)
-	lNameListStmt.NameList.Accept(cgv, &nameListData)
+	lNameListStmt.NameList.Accept(cgv, unsafe.Pointer(nameListData))
 }
 
 func (cgv *codeGenerateVisitor) VisitAssignmentStatement(assignStmt *AssignmentStatement, data unsafe.Pointer) {
@@ -537,11 +537,11 @@ func (cgv *codeGenerateVisitor) VisitAssignmentStatement(assignStmt *AssignmentS
 
 	// Get exp list results placed into [registerId, endRegister)
 	eListData := newCgExpListData(registerId, endRegister)
-	assignStmt.ExpList.Accept(cgv, &eListData)
+	assignStmt.ExpList.Accept(cgv, unsafe.Pointer(eListData))
 
 	// Assign results to var list
 	varListData := newCgVarListData(registerId, endRegister)
-	assignStmt.VarList.Accept(cgv, &varListData)
+	assignStmt.VarList.Accept(cgv, unsafe.Pointer(varListData))
 }
 
 func (cgv *codeGenerateVisitor) VisitVarList(varList *VarList, data unsafe.Pointer) {
@@ -556,7 +556,7 @@ func (cgv *codeGenerateVisitor) VisitVarList(varList *VarList, data unsafe.Point
 	// Assign results to each variable
 	for i := 0; i < varCount; i++ {
 		eVarData := newCgExpVarData(registerId, registerId+1)
-		varList.VarList[i].Accept(cgv, &eVarData)
+		varList.VarList[i].Accept(cgv, unsafe.Pointer(eVarData))
 		registerId++
 	}
 }
@@ -692,7 +692,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 	if token == TokenAnd || token == TokenOr {
 		// Calculate left expression
 		leftData := newCgExpVarData(registerId, registerId+1)
-		binaryExp.Left.Accept(cgv, &leftData)
+		binaryExp.Left.Accept(cgv, unsafe.Pointer(leftData))
 
 		// Do not calculate right expression when the result of left expression
 		// satisfy semantic of operator
@@ -707,7 +707,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 
 		// Calculate right expression
 		rightData := newCgExpVarData(registerId, registerId+1)
-		binaryExp.Right.Accept(cgv, &rightData)
+		binaryExp.Right.Accept(cgv, unsafe.Pointer(rightData))
 
 		dstIndex := function.OpCodeSize()
 		function.GetMutableInstruction(index).RefillsBx(dstIndex - index)
@@ -720,7 +720,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 	// Generate code to calculate left expression
 	{
 		eVarData := newCgExpVarData(registerId, registerId+1)
-		binaryExp.Left.Accept(cgv, &eVarData)
+		binaryExp.Left.Accept(cgv, unsafe.Pointer(eVarData))
 		leftRegister = registerId
 	}
 
@@ -731,7 +731,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 			// If parent AST provide more than one register, then use the second
 			// register as temp register of right expression
 			eVarData := newCgExpVarData(registerId+1, registerId+2)
-			binaryExp.Right.Accept(cgv, &eVarData)
+			binaryExp.Right.Accept(cgv, unsafe.Pointer(eVarData))
 			rightRegister = registerId + 1
 		} else {
 			// No more register, then generate a new register as temp register of
@@ -740,7 +740,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 			NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 			rightRegister = cgv.GetNextRegisterId()
 			eVarData := newCgExpVarData(rightRegister, rightRegister+1)
-			binaryExp.Right.Accept(cgv, &eVarData)
+			binaryExp.Right.Accept(cgv, unsafe.Pointer(eVarData))
 		}
 	}
 
@@ -793,7 +793,7 @@ func (cgv *codeGenerateVisitor) VisitUnaryExpression(unaryExp *UnaryExpression, 
 		return
 	}
 
-	unaryExp.Exp.Accept(cgv, eVarData)
+	unaryExp.Exp.Accept(cgv, unsafe.Pointer(eVarData))
 
 	// Choose OpType by operator
 	var opType int
@@ -870,7 +870,7 @@ func (cgv *codeGenerateVisitor) VisitParamList(paramList *ParamList, data unsafe
 
 	if paramList.NameList != nil {
 		nameListData := newCgNameListData(false)
-		paramList.NameList.Accept(cgv, &nameListData)
+		paramList.NameList.Accept(cgv, unsafe.Pointer(nameListData))
 	}
 }
 
@@ -915,7 +915,7 @@ func (cgv *codeGenerateVisitor) VisitTableDefine(tableDef *TableDefine, data uns
 		for i := range tableDef.Fields {
 			r := cgv.GetNextRegisterId()
 			NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
-			tableDef.Fields[i].Accept(cgv, &fieldData)
+			tableDef.Fields[i].Accept(cgv, unsafe.Pointer(fieldData))
 		}
 	}
 
@@ -932,7 +932,7 @@ func (cgv *codeGenerateVisitor) VisitTableIndexField(tableIField *TableIndexFiel
 		panic(err)
 	}
 	expVarData := newCgExpVarData(keyRegister, keyRegister+1)
-	tableIField.Index.Accept(cgv, &expVarData)
+	tableIField.Index.Accept(cgv, unsafe.Pointer(expVarData))
 
 	cgv.setTableFieldValue(tableIField, tableRegister, keyRegister, tableIField.Line)
 }
@@ -977,7 +977,7 @@ func (cgv *codeGenerateVisitor) VisitIndexAccessor(iAccessor *IndexAccessor, dat
 	cgv.accessTableField(iAccessor, data, iAccessor.Line,
 		func(keyRegister int) {
 			data := newCgExpVarData(keyRegister, keyRegister+1)
-			iAccessor.Index.Accept(cgv, &data)
+			iAccessor.Index.Accept(cgv, unsafe.Pointer(data))
 		})
 }
 
@@ -1033,7 +1033,7 @@ func (cgv *codeGenerateVisitor) VisitFuncCallArgs(callArgs *FuncCallArgs, data u
 				panic(err)
 			}
 			eListData := newCgExpListData(startRegister, ExpValueCountAny)
-			callArgs.Arg.Accept(cgv, &eListData)
+			callArgs.Arg.Accept(cgv, unsafe.Pointer(eListData))
 		}
 	} else {
 		//
@@ -1042,7 +1042,7 @@ func (cgv *codeGenerateVisitor) VisitFuncCallArgs(callArgs *FuncCallArgs, data u
 			panic(err)
 		}
 		eVarData := newCgExpVarData(startRegister, startRegister+1)
-		callArgs.Arg.Accept(cgv, &eVarData)
+		callArgs.Arg.Accept(cgv, unsafe.Pointer(eVarData))
 	}
 }
 
@@ -1086,7 +1086,7 @@ func (cgv *codeGenerateVisitor) VisitExpressionList(expList *ExpressionList, dat
 		r := cgv.GetNextRegisterId()
 		NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 		eVarData := newCgExpVarData(registerId, registerId+1)
-		expList.ExpList[i].Accept(cgv, &eVarData)
+		expList.ExpList[i].Accept(cgv, unsafe.Pointer(eVarData))
 		registerId++
 	}
 
@@ -1095,7 +1095,7 @@ func (cgv *codeGenerateVisitor) VisitExpressionList(expList *ExpressionList, dat
 		r := cgv.GetNextRegisterId()
 		NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 		eVarData := newCgExpVarData(0, 0)
-		expList.ExpList[i].Accept(cgv, &eVarData)
+		expList.ExpList[i].Accept(cgv, unsafe.Pointer(eVarData))
 	}
 
 	// Last expression consume all remain registers
@@ -1106,7 +1106,7 @@ func (cgv *codeGenerateVisitor) VisitExpressionList(expList *ExpressionList, dat
 	r := cgv.GetNextRegisterId()
 	NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 	eVarData := newCgExpVarData(registerId, endRegister)
-	expList.ExpList[len(expList.ExpList)-1].Accept(cgv, &eVarData)
+	expList.ExpList[len(expList.ExpList)-1].Accept(cgv, unsafe.Pointer(eVarData))
 }
 
 // Prepare function data when enter each lexical function
@@ -1399,7 +1399,7 @@ func (cgv *codeGenerateVisitor) ifStatementGenerateCode(stmtType interface{}) {
 				panic(err)
 			}
 			eVarData := newCgExpVarData(registerId, registerId+1)
-			ifStmt.Exp.Accept(cgv, &eVarData)
+			ifStmt.Exp.Accept(cgv, unsafe.Pointer(eVarData))
 
 			instruction := AsBxCode(OpTypeJmpFalse, registerId, 0)
 			jmpIndex := function.AddInstruction(instruction, ifStmt.Line)
@@ -1437,7 +1437,7 @@ func (cgv *codeGenerateVisitor) ifStatementGenerateCode(stmtType interface{}) {
 				panic(err)
 			}
 			eVarData := newCgExpVarData(registerId, registerId+1)
-			ifStmt.Exp.Accept(cgv, &eVarData)
+			ifStmt.Exp.Accept(cgv, unsafe.Pointer(eVarData))
 
 			instruction := AsBxCode(OpTypeJmpFalse, registerId, 0)
 			jmpIndex := function.AddInstruction(instruction, ifStmt.Line)
@@ -1477,7 +1477,7 @@ func (cgv *codeGenerateVisitor) setTableFieldValue(tableFieldType interface{}, t
 			panic(err)
 		}
 		eVarData := newCgExpVarData(valueRegister, valueRegister+1)
-		field.Value.Accept(cgv, &eVarData)
+		field.Value.Accept(cgv, unsafe.Pointer(eVarData))
 
 		// Set table field
 		instruction := ABCCode(OpTypeSetTable, tableRegister, keyRegister, valueRegister)
@@ -1489,7 +1489,7 @@ func (cgv *codeGenerateVisitor) setTableFieldValue(tableFieldType interface{}, t
 			panic(err)
 		}
 		eVarData := newCgExpVarData(valueRegister, valueRegister+1)
-		field.Value.Accept(cgv, &eVarData)
+		field.Value.Accept(cgv, unsafe.Pointer(eVarData))
 
 		// Set table field
 		instruction := ABCCode(OpTypeSetTable, tableRegister, keyRegister, valueRegister)
@@ -1501,7 +1501,7 @@ func (cgv *codeGenerateVisitor) setTableFieldValue(tableFieldType interface{}, t
 			panic(err)
 		}
 		eVarData := newCgExpVarData(valueRegister, valueRegister+1)
-		field.Value.Accept(cgv, &eVarData)
+		field.Value.Accept(cgv, unsafe.Pointer(eVarData))
 
 		// Set table field
 		instruction := ABCCode(OpTypeSetTable, tableRegister, keyRegister, valueRegister)
@@ -1552,7 +1552,7 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 
 		// Load table
 		tableExpVarData := newCgExpVarData(tableRegister, tableRegister+1)
-		accessor.Table.Accept(cgv, &tableExpVarData)
+		accessor.Table.Accept(cgv, unsafe.Pointer(tableExpVarData))
 
 		// Load key
 		loadKey(keyRegister)
@@ -1604,7 +1604,7 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 
 		// Load table
 		tableExpVarData := newCgExpVarData(tableRegister, tableRegister+1)
-		accessor.Table.Accept(cgv, &tableExpVarData)
+		accessor.Table.Accept(cgv, unsafe.Pointer(tableExpVarData))
 
 		// Load key
 		loadKey(keyRegister)
@@ -1651,14 +1651,14 @@ func (cgv *codeGenerateVisitor) functionCall(funcCallType interface{}, data unsa
 			r := cgv.GetNextRegisterId()
 			NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 			callerData := newCgExpVarData(callerRegister, callerRegister+1)
-			funcCall.Caller.Accept(cgv, &callerData)
+			funcCall.Caller.Accept(cgv, unsafe.Pointer(callerData))
 		}
 
 		// Adjust caller, and also adjust args, return how many args adjusted
 		adjustArgs := adjustCallerArg(callerRegister)
 
 		var argData cgFuncCallArgsData
-		funcCall.Args.Accept(cgv, &argData)
+		funcCall.Args.Accept(cgv, unsafe.Pointer(&argData))
 
 		// Calculate total args
 		var totalArgs int
@@ -1721,14 +1721,14 @@ func (cgv *codeGenerateVisitor) functionCall(funcCallType interface{}, data unsa
 			r := cgv.GetNextRegisterId()
 			NewGuard(func() {}, func() { cgv.ResetRegisterIdGenerator(r) })
 			callerData := newCgExpVarData(callerRegister, callerRegister+1)
-			funcCall.Caller.Accept(cgv, &callerData)
+			funcCall.Caller.Accept(cgv, unsafe.Pointer(callerData))
 		}
 
 		// Adjust caller, and also adjust args, return how many args adjusted
 		adjustArgs := adjustCallerArg(callerRegister)
 
 		var argData cgFuncCallArgsData
-		funcCall.Args.Accept(cgv, &argData)
+		funcCall.Args.Accept(cgv, unsafe.Pointer(&argData))
 
 		// Calculate total args
 		var totalArgs int

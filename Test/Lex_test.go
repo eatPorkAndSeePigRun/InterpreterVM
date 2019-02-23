@@ -13,12 +13,12 @@ type lexerWrapper struct {
 	lexer Lexer
 }
 
-func NewLexerWrapper(str string) lexerWrapper {
+func NewLexerWrapper(str string) *lexerWrapper {
 	var lw lexerWrapper
 	lw.iss = text.NewInStringStream(str)
 	lw.name = *NewString("lex")
 	lw.lexer = NewLexer(&lw.state, &lw.name, lw.iss.GetChar)
-	return lw
+	return &lw
 }
 
 func (lw lexerWrapper) GetToken() int {

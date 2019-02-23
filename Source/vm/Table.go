@@ -248,7 +248,7 @@ func (t *Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 	if ok {
 		isV := false
 		for nk, nv := range *t.hash {
-			if nv.isEqual(&v) {
+			if nv.IsEqual(&v) {
 				isV = true
 			}
 			if isV == true {
