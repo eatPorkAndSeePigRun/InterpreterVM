@@ -1,14 +1,13 @@
 package vm
 
 import (
-	"InterpreterVM/Source/datatype"
 	"fmt"
 	"math"
 	"unsafe"
 )
 
-func numberToStr(num *datatype.Value) string {
-	if num.Type != datatype.ValueTNumber {
+func numberToStr(num *Value) string {
+	if num.Type != ValueTNumber {
 		panic("assert")
 	}
 	if math.Floor(num.Num) == num.Num {
@@ -18,35 +17,35 @@ func numberToStr(num *datatype.Value) string {
 	}
 }
 
-func getConstValue(i Instruction, proto *datatype.Function) *datatype.Value {
+func getConstValue(i Instruction, proto *Function) *Value {
 	return proto.GetConstValue(int(GetParamBx(i)))
 }
 
-func getRegisterA(i Instruction, call *CallInfo) *datatype.Value {
+func getRegisterA(i Instruction, call *CallInfo) *Value {
 	return vPointerAdd(call.Register, GetParamA(i))
 }
 
-func getRegisterB(i Instruction, call *CallInfo) *datatype.Value {
+func getRegisterB(i Instruction, call *CallInfo) *Value {
 	return vPointerAdd(call.Register, GetParamB(i))
 }
 
-func getRegisterC(i Instruction, call *CallInfo) *datatype.Value {
+func getRegisterC(i Instruction, call *CallInfo) *Value {
 	return vPointerAdd(call.Register, GetParamC(i))
 }
 
-func getUpvalueB(i Instruction, cl *datatype.Closure) *datatype.Upvalue {
+func getUpvalueB(i Instruction, cl *Closure) *Upvalue {
 	return cl.GetUpvalue(GetParamB(i))
 }
 
-func getRealValue(a *datatype.Value) *datatype.Value {
-	if a.Type == datatype.ValueTUpvalue {
+func getRealValue(a *Value) *Value {
+	if a.Type == ValueTUpvalue {
 		return a.Upvalue.GetValue()
 	} else {
 		return a
 	}
 }
 
-func getCallInfoAndProto(vm *VM) (*CallInfo, *datatype.Function) {
+func getCallInfoAndProto(vm *VM) (*CallInfo, *Function) {
 	if vm.state.calls.Len() == 0 {
 		panic("assert")
 	}
@@ -58,7 +57,7 @@ func getCallInfoAndProto(vm *VM) (*CallInfo, *datatype.Function) {
 	return call, proto
 }
 
-func getRegisterABC(i Instruction, call *CallInfo) (a, b, c *datatype.Value) {
+func getRegisterABC(i Instruction, call *CallInfo) (a, b, c *Value) {
 	return getRegisterA(i, call), getRegisterB(i, call), getRegisterC(i, call)
 }
 
@@ -74,7 +73,7 @@ func (vm *VM) executeFrame() error {
 	call := vm.state.calls.Back().Value.(*CallInfo)
 	cl := call.Func.Closure
 	proto := cl.GetPrototype()
-	var a, b *datatype.Value
+	var a, b *Value
 
 	for uintptr(unsafe.Pointer(call.Instruction)) < uintptr(unsafe.Pointer(call.End)) {
 		vm.state.CheckRunGC()
@@ -101,7 +100,7 @@ func (vm *VM) executeFrame() error {
 				panic("assert")
 			}
 			a.Num = (float64)((*call.Instruction).OpCode)
-			a.Type = datatype.ValueTNumber
+			a.Type = ValueTNumber
 		case OpTypeLoadConst:
 			a = getRegisterA(i, call)
 			b = getConstValue(i, proto)
@@ -158,14 +157,14 @@ func (vm *VM) executeFrame() error {
 			}
 		case OpTypeJmpNil:
 			a = getRegisterA(i, call)
-			if a.Type == datatype.ValueTNil {
+			if a.Type == ValueTNil {
 				call.Instruction = iPointerAdd(call.Instruction, -1+int(GetParamBx(i)))
 			}
 		case OpTypeJmp:
 			call.Instruction = iPointerAdd(call.Instruction, -1+int(GetParamBx(i)))
 		case OpTypeNeg:
 			a = getRegisterA(i, call)
-			if err := vm.checkType(a, datatype.ValueTNumber, "neg"); err != nil {
+			if err := vm.checkType(a, ValueTNumber, "neg"); err != nil {
 				panic(err)
 			}
 			a.Num = -a.Num
@@ -174,22 +173,22 @@ func (vm *VM) executeFrame() error {
 			a.SetBool(a.IsFalse())
 		case OpTypeLen:
 			a = getRegisterA(i, call)
-			if a.Type == datatype.ValueTTable {
+			if a.Type == ValueTTable {
 				a.Num = float64(a.Table.ArraySize())
-			} else if a.Type == datatype.ValueTString {
+			} else if a.Type == ValueTString {
 				a.Num = float64(a.Str.GetLength())
 			} else {
 				return vm.reportTypeError(a, "length of")
 			}
-			a.Type = datatype.ValueTNumber
+			a.Type = ValueTNumber
 		case OpTypeAdd:
 			a, b, c := getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "add"); err != nil {
 				panic(err)
 			}
-			if a.Type == datatype.ValueTTable {
+			if a.Type == ValueTTable {
 				a.Num = float64(a.Table.ArraySize())
-				a.Type = datatype.ValueTNumber
+				a.Type = ValueTNumber
 			}
 		case OpTypeSub:
 			a, b, c := getRegisterABC(i, call)
@@ -197,21 +196,21 @@ func (vm *VM) executeFrame() error {
 				panic(err)
 			}
 			a.Num = b.Num - c.Num
-			a.Type = datatype.ValueTNumber
+			a.Type = ValueTNumber
 		case OpTypeMul:
 			a, b, c := getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "multiply"); err != nil {
 				panic(err)
 			}
 			a.Num = b.Num * c.Num
-			a.Type = datatype.ValueTNumber
+			a.Type = ValueTNumber
 		case OpTypeDiv:
 			a, b, c := getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "div"); err != nil {
 				panic(err)
 			}
 			a.Num = b.Num / c.Num
-			a.Type = datatype.ValueTNumber
+			a.Type = ValueTNumber
 		case OpTypePow:
 			a, b, c := getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "power"); err != nil {
@@ -224,7 +223,7 @@ func (vm *VM) executeFrame() error {
 				panic(err)
 			}
 			a.Num = math.Mod(b.Num, c.Num)
-			a.Type = datatype.ValueTNumber
+			a.Type = ValueTNumber
 		case OpTypeConcat:
 			a, b, c := getRegisterABC(i, call)
 			if err := vm.concat(a, b, c); err != nil {
@@ -235,7 +234,7 @@ func (vm *VM) executeFrame() error {
 			if err := vm.checkInequalityType(*b, *c, "compare(<)"); err != nil {
 				panic(err)
 			}
-			if b.Type == datatype.ValueTNumber {
+			if b.Type == ValueTNumber {
 				a.SetBool(b.Num < c.Num)
 			} else {
 				a.SetBool(b.Str.IsLess(*c.Str))
@@ -245,7 +244,7 @@ func (vm *VM) executeFrame() error {
 			if err := vm.checkInequalityType(*b, *c, "compare(>)"); err != nil {
 				panic(err)
 			}
-			if b.Type == datatype.ValueTNumber {
+			if b.Type == ValueTNumber {
 				a.SetBool(b.Num > c.Num)
 			} else {
 				a.SetBool(c.Str.IsLess(*b.Str))
@@ -261,7 +260,7 @@ func (vm *VM) executeFrame() error {
 			if err := vm.checkInequalityType(*b, *c, "compare(<=)"); err != nil {
 				panic(err)
 			}
-			if b.Type == datatype.ValueTNumber {
+			if b.Type == ValueTNumber {
 				a.SetBool(b.Num <= c.Num)
 			} else {
 				a.SetBool(b.Str.IsLess(*c.Str))
@@ -271,7 +270,7 @@ func (vm *VM) executeFrame() error {
 			if err := vm.checkInequalityType(*b, *c, "compare(>=)"); err != nil {
 				panic(err)
 			}
-			if b.Type == datatype.ValueTNumber {
+			if b.Type == ValueTNumber {
 				a.SetBool(b.Num >= c.Num)
 			} else {
 				a.SetBool(!b.Str.IsLess(*c.Str))
@@ -279,24 +278,24 @@ func (vm *VM) executeFrame() error {
 		case OpTypeNewTable:
 			a = getRegisterA(i, call)
 			a.Table = vm.state.NewTable()
-			a.Type = datatype.ValueTTable
+			a.Type = ValueTTable
 		case OpTypeSetTable:
 			a, b, c := getRegisterABC(i, call)
 			if err := vm.checkTableType(*a, *b, "set", "to"); err != nil {
 				panic(err)
 			}
-			if a.Type == datatype.ValueTTable {
+			if a.Type == ValueTTable {
 				a.Table.SetValue(*b, *c)
-			} else if a.Type == datatype.ValueTUserData {
+			} else if a.Type == ValueTUserData {
 				a.UserDate.GetMetaTable().SetValue(*b, *c)
 			} else {
 				panic("assert")
 			}
 		case OpTypeGetTable:
 			a, b, c := getRegisterABC(i, call)
-			if a.Type == datatype.ValueTTable {
+			if a.Type == ValueTTable {
 				*c = a.Table.GetValue(*b)
-			} else if a.Type == datatype.ValueTUserData {
+			} else if a.Type == ValueTUserData {
 				*c = a.UserDate.GetMetaTable().GetValue(*b)
 			} else {
 				panic("assert")
@@ -320,7 +319,7 @@ func (vm *VM) executeFrame() error {
 	// Reset top value
 	vm.state.stack.SetNewTop(newTop)
 	// Set expect results
-	if call.ExpectResult != datatype.ExpValueCountAny {
+	if call.ExpectResult != ExpValueCountAny {
 		vm.state.stack.SetNewTop(vPointerAdd(newTop, call.ExpectResult))
 	}
 	// Pop current CallInfo, and return to last CallInfo
@@ -329,8 +328,8 @@ func (vm *VM) executeFrame() error {
 }
 
 // Execute next frame if return true
-func (vm *VM) call(a *datatype.Value, i Instruction) (bool, error) {
-	if a.Type != datatype.ValueTClosure && a.Type != datatype.ValueTCFunction {
+func (vm *VM) call(a *Value, i Instruction) (bool, error) {
+	if a.Type != ValueTClosure && a.Type != ValueTCFunction {
 		panic(vm.reportTypeError(a, "call"))
 		return true, nil
 	}
@@ -346,10 +345,10 @@ func (vm *VM) call(a *datatype.Value, i Instruction) (bool, error) {
 	return res, nil
 }
 
-func (vm *VM) generateClosure(a *datatype.Value, i Instruction) {
+func (vm *VM) generateClosure(a *Value, i Instruction) {
 	call, proto := getCallInfoAndProto(vm)
 	aProto := proto.GetChildFunction(int(GetParamBx(i)))
-	a.Type = datatype.ValueTClosure
+	a.Type = ValueTClosure
 	a.Closure = vm.state.NewClosure()
 	a.Closure.SetPrototype(aProto)
 
@@ -361,10 +360,10 @@ func (vm *VM) generateClosure(a *datatype.Value, i Instruction) {
 		upvalueInfo := aProto.GetUpvalue(i)
 		if upvalueInfo.ParentLocal {
 			reg := vPointerAdd(call.Register, upvalueInfo.RegisterIndex)
-			if reg.Type != datatype.ValueTUpvalue {
+			if reg.Type != ValueTUpvalue {
 				upvalue := vm.state.NewUpvalue()
 				upvalue.SetValue(reg)
-				reg.Type = datatype.ValueTUpvalue
+				reg.Type = ValueTUpvalue
 				reg.Upvalue = upvalue
 				newClosure.AddUpvalue(upvalue)
 			} else {
@@ -378,17 +377,17 @@ func (vm *VM) generateClosure(a *datatype.Value, i Instruction) {
 	}
 }
 
-func (vm *VM) copyVarArg(a *datatype.Value, i Instruction) {
+func (vm *VM) copyVarArg(a *Value, i Instruction) {
 	call, proto := getCallInfoAndProto(vm)
 	arg := vPointerAdd(call.Func, 1)
-	// totalArgs represents the number of datatype.Value between call.Register and arg
+	// totalArgs represents the number of Value between call.Register and arg
 	totalArgs := int((uintptr(unsafe.Pointer(call.Register)) - uintptr(unsafe.Pointer(arg))) /
-		unsafe.Sizeof(datatype.Value{}))
+		unsafe.Sizeof(Value{}))
 	varargCount := totalArgs - proto.FixedArgCount()
 
 	arg = vPointerAdd(arg, proto.FixedArgCount())
 	expectCount := int(GetParamsBx(i))
-	if expectCount == datatype.ExpValueCountAny {
+	if expectCount == ExpValueCountAny {
 		for i := 0; i < varargCount; i++ {
 			*a = *arg
 			arg = vPointerAdd(arg, 1)
@@ -407,10 +406,10 @@ func (vm *VM) copyVarArg(a *datatype.Value, i Instruction) {
 	}
 }
 
-func (vm *VM) return_(a *datatype.Value, i Instruction) {
+func (vm *VM) return_(a *Value, i Instruction) {
 	// Set stack top when return value count i is fixed
 	retValueCount := int(GetParamsBx(i))
-	if retValueCount != datatype.ExpValueCountAny {
+	if retValueCount != ExpValueCountAny {
 		vm.state.stack.Top = vPointerAdd(a, retValueCount)
 	}
 
@@ -424,7 +423,7 @@ func (vm *VM) return_(a *datatype.Value, i Instruction) {
 
 	expectResult := call.ExpectResult
 	resultCount := int(uintptr(unsafe.Pointer(vm.state.stack.Top)) - uintptr(unsafe.Pointer(a)))
-	if expectResult == datatype.ExpValueCountAny {
+	if expectResult == ExpValueCountAny {
 		for i := 0; i < resultCount; i++ {
 			*dst = *src
 			src = vPointerAdd(src, 1)
@@ -451,12 +450,12 @@ func (vm *VM) return_(a *datatype.Value, i Instruction) {
 	vm.state.calls.Remove(vm.state.calls.Back())
 }
 
-func (vm *VM) concat(dst, op1, op2 *datatype.Value) error {
-	if op1.Type == datatype.ValueTString && op2.Type == datatype.ValueTString {
+func (vm *VM) concat(dst, op1, op2 *Value) error {
+	if op1.Type == ValueTString && op2.Type == ValueTString {
 		dst.Str = vm.state.GetString(op1.Str.GetStdString() + op2.Str.GetCStr())
-	} else if op1.Type == datatype.ValueTString && op2.Type == datatype.ValueTNumber {
+	} else if op1.Type == ValueTString && op2.Type == ValueTNumber {
 		dst.Str = vm.state.GetString(op1.Str.GetCStr() + numberToStr(op2))
-	} else if op1.Type == datatype.ValueTNumber && op2.Type == datatype.ValueTString {
+	} else if op1.Type == ValueTNumber && op2.Type == ValueTString {
 		dst.Str = vm.state.GetString(numberToStr(op2) + op2.Str.GetCStr())
 	} else {
 		pos1, pos2 := vm.getCurrentInstructionPos()
@@ -465,18 +464,18 @@ func (vm *VM) concat(dst, op1, op2 *datatype.Value) error {
 	return nil
 }
 
-func (vm *VM) forInit(var_, limit, step *datatype.Value) error {
-	if var_.Type != datatype.ValueTNumber {
+func (vm *VM) forInit(var_, limit, step *Value) error {
+	if var_.Type != ValueTNumber {
 		pos1, pos2 := vm.getCurrentInstructionPos()
 		return NewRuntimeError2(pos1, pos2, *var_, "'for' init", "number")
 	}
 
-	if limit.Type != datatype.ValueTNumber {
+	if limit.Type != ValueTNumber {
 		pos1, pos2 := vm.getCurrentInstructionPos()
 		return NewRuntimeError2(pos1, pos2, *var_, "'for' limit", "number")
 	}
 
-	if step.Type != datatype.ValueTNumber {
+	if step.Type != ValueTNumber {
 		pos1, pos2 := vm.getCurrentInstructionPos()
 		return NewRuntimeError2(pos1, pos2, *var_, "'for' step", "number")
 	}
@@ -484,7 +483,7 @@ func (vm *VM) forInit(var_, limit, step *datatype.Value) error {
 }
 
 // Debug help functions
-func (vm *VM) getOperandNameAndScope(a *datatype.Value) (string, string) {
+func (vm *VM) getOperandNameAndScope(a *Value) (string, string) {
 	call, proto := getCallInfoAndProto(vm)
 	reg := int(uintptr(unsafe.Pointer(a)) - uintptr(unsafe.Pointer(call.Register)))
 	instruction := iPointerAdd(call.Instruction, -1)
@@ -506,7 +505,7 @@ func (vm *VM) getOperandNameAndScope(a *datatype.Value) (string, string) {
 			if reg == GetParamA(*instruction) {
 				index := GetParamBx(*instruction)
 				key := proto.GetConstValue(int(index))
-				if key.Type == datatype.ValueTString {
+				if key.Type == ValueTString {
 					return key.Str.GetCStr(), scopeGlobal
 				} else {
 					return unknownName, scopeNil
@@ -532,7 +531,7 @@ func (vm *VM) getOperandNameAndScope(a *datatype.Value) (string, string) {
 			if reg == GetParamC(*instruction) {
 				key := GetParamB(*instruction)
 				keyReg := vPointerAdd(call.Register, key)
-				if keyReg.Type == datatype.ValueTString {
+				if keyReg.Type == ValueTString {
 					return keyReg.Str.GetCStr(), scopeTable
 				} else {
 					return unknownName, scopeTable
@@ -549,40 +548,40 @@ func (vm *VM) getCurrentInstructionPos() (string, int) {
 	return proto.GetModule().GetCStr(), proto.GetInstructionLine(int(index))
 }
 
-func (vm *VM) checkType(v *datatype.Value, vType int, op string) error {
+func (vm *VM) checkType(v *Value, vType int, op string) error {
 	if v.Type != vType {
 		return vm.reportTypeError(v, op)
 	}
 	return nil
 }
 
-func (vm *VM) checkArithType(v1, v2 datatype.Value, op string) error {
-	if v1.Type != datatype.ValueTNumber || v2.Type != datatype.ValueTNumber {
+func (vm *VM) checkArithType(v1, v2 Value, op string) error {
+	if v1.Type != ValueTNumber || v2.Type != ValueTNumber {
 		pos1, pos2 := vm.getCurrentInstructionPos()
 		return NewRuntimeError4(pos1, pos2, v1, v2, op)
 	}
 	return nil
 }
 
-func (vm *VM) checkInequalityType(v1, v2 datatype.Value, op string) error {
+func (vm *VM) checkInequalityType(v1, v2 Value, op string) error {
 	if (v1.Type != v2.Type) ||
-		(v1.Type != datatype.ValueTNumber && v1.Type != datatype.ValueTString) {
+		(v1.Type != ValueTNumber && v1.Type != ValueTString) {
 		pos1, pos2 := vm.getCurrentInstructionPos()
 		return NewRuntimeError4(pos1, pos2, v1, v2, op)
 	}
 	return nil
 }
 
-func (vm *VM) checkTableType(t, k datatype.Value, op, desc string) error {
-	if (t.Type == datatype.ValueTTable) ||
-		(t.Type == datatype.ValueTUserData && t.UserDate.GetMetaTable() != nil) {
+func (vm *VM) checkTableType(t, k Value, op, desc string) error {
+	if (t.Type == ValueTTable) ||
+		(t.Type == ValueTUserData && t.UserDate.GetMetaTable() != nil) {
 		return nil
 	}
 
 	n, s := vm.getOperandNameAndScope(&t)
 	pos1, pos2 := vm.getCurrentInstructionPos()
 	var keyName string
-	if k.Type == datatype.ValueTString {
+	if k.Type == ValueTString {
 		keyName = k.Str.GetCStr()
 	} else {
 		keyName = "?"
@@ -591,7 +590,7 @@ func (vm *VM) checkTableType(t, k datatype.Value, op, desc string) error {
 	return NewRuntimeError3(pos1, pos2, t, n, s, opDesc)
 }
 
-func (vm *VM) reportTypeError(v *datatype.Value, op string) error {
+func (vm *VM) reportTypeError(v *Value, op string) error {
 	n, s := vm.getOperandNameAndScope(v)
 	pos1, pos2 := vm.getCurrentInstructionPos()
 	return NewRuntimeError3(pos1, pos2, *v, n, s, op)
@@ -606,7 +605,7 @@ func (vm *VM) Execute() {
 		// If current stack frame is a frame of a c function,
 		// do not continue execute instructions, just return
 		call := vm.state.calls.Back().Value.(*CallInfo)
-		if call.Func.Type == datatype.ValueTCFunction {
+		if call.Func.Type == ValueTCFunction {
 			return
 		}
 

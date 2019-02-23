@@ -1,8 +1,6 @@
-package compiler
+package vm
 
 import (
-	"InterpreterVM/Source/datatype"
-	"InterpreterVM/Source/vm"
 	"unsafe"
 )
 
@@ -12,7 +10,7 @@ type lexicalBlock struct {
 	// Local names
 	// Same names are the same instance String, so using String
 	// pointer as key is fine
-	Names map[*datatype.String]bool // as set[*datatype.String]
+	Names map[*String]bool // as set[*String]
 }
 
 func newLexicalBlock() *lexicalBlock {
@@ -32,7 +30,7 @@ func newLexicalFunction() *lexicalFunction {
 }
 
 type semanticAnalysisVisitor struct {
-	state           *vm.State
+	state           *State
 	currentFunction *lexicalFunction // Current lexical function for all names finding
 }
 
@@ -65,7 +63,7 @@ func (sav *semanticAnalysisVisitor) VisitReturnStatement(retStmt *ReturnStatemen
 func (sav *semanticAnalysisVisitor) VisitBreakStatement(breakStmt *BreakStatement, data unsafe.Pointer) {
 	breakStmt.Loop = sav.GetLoopAST()
 	if breakStmt.Loop == nil {
-		panic(vm.NewSemanticError("not in any loop", breakStmt.Break))
+		panic(NewSemanticError("not in any loop", breakStmt.Break))
 	}
 }
 
@@ -242,7 +240,7 @@ func (sav *semanticAnalysisVisitor) VisitTerminator(term *Terminator, data unsaf
 
 	// Check function has vararg
 	if term.Token.Token == TokenVarArg && !sav.HasVararg() {
-		panic(vm.NewSemanticError("function has no '...' param", term.Token))
+		panic(NewSemanticError("function has no '...' param", term.Token))
 	}
 
 	// Set results any count
@@ -262,11 +260,11 @@ func (sav *semanticAnalysisVisitor) VisitBinaryExpression(binaryExp *BinaryExpre
 	switch binaryExp.OpToken.Token {
 	case '+', '-', '*', '/', '^', '%':
 		if lExpVarData.ExpType != ExpTypeUnknown && lExpVarData.ExpType != ExpTypeNumber {
-			panic(vm.NewSemanticError("left expression of binary operator is not number",
+			panic(NewSemanticError("left expression of binary operator is not number",
 				binaryExp.OpToken))
 		}
 		if rExpVarData.ExpType != ExpTypeUnknown && rExpVarData.ExpType != ExpTypeNumber {
-			panic(vm.NewSemanticError("right expression of binary operator is not number",
+			panic(NewSemanticError("right expression of binary operator is not number",
 				binaryExp.OpToken))
 		}
 		parentExpVarData.ExpType = ExpTypeNumber
@@ -274,9 +272,9 @@ func (sav *semanticAnalysisVisitor) VisitBinaryExpression(binaryExp *BinaryExpre
 		if lExpVarData.ExpType != ExpTypeUnknown && rExpVarData.ExpType != ExpTypeUnknown {
 			if lExpVarData.ExpType != ExpTypeUnknown && rExpVarData.ExpType != ExpTypeUnknown {
 				if lExpVarData.ExpType != rExpVarData.ExpType {
-					panic(vm.NewSemanticError("compare different expression type", binaryExp.OpToken))
+					panic(NewSemanticError("compare different expression type", binaryExp.OpToken))
 				} else if lExpVarData.ExpType != ExpTypeNumber && lExpVarData.ExpType != ExpTypeString {
-					panic(vm.NewSemanticError("can not compare operands", binaryExp.OpToken))
+					panic(NewSemanticError("can not compare operands", binaryExp.OpToken))
 				}
 			}
 		}
@@ -286,7 +284,7 @@ func (sav *semanticAnalysisVisitor) VisitBinaryExpression(binaryExp *BinaryExpre
 			if !((lExpVarData.ExpType == ExpTypeString && rExpVarData.ExpType == ExpTypeString) ||
 				(lExpVarData.ExpType == ExpTypeString && rExpVarData.ExpType == ExpTypeNumber) ||
 				(lExpVarData.ExpType == ExpTypeNumber && rExpVarData.ExpType == ExpTypeString)) {
-				panic(vm.NewSemanticError("can not concat operands", binaryExp.OpToken))
+				panic(NewSemanticError("can not concat operands", binaryExp.OpToken))
 			}
 		}
 		parentExpVarData.ExpType = ExpTypeString
@@ -309,11 +307,11 @@ func (sav *semanticAnalysisVisitor) VisitUnaryExpression(unaryExp *UnaryExpressi
 		switch unaryExp.OpToken.Token {
 		case '-':
 			if eVarData.ExpType != ExpTypeNumber {
-				panic(vm.NewSemanticError("operand is not number", unaryExp.OpToken))
+				panic(NewSemanticError("operand is not number", unaryExp.OpToken))
 			}
 		case '#':
 			if eVarData.ExpType != ExpTypeTable && eVarData.ExpType != ExpTypeString {
-				panic(vm.NewSemanticError("operand is not table or string", unaryExp.OpToken))
+				panic(NewSemanticError("operand is not table or string", unaryExp.OpToken))
 			}
 		default:
 		}
@@ -468,13 +466,13 @@ func (sav *semanticAnalysisVisitor) VisitExpressionList(expList *ExpressionList,
 	expVarData := newExpVarData(SemanticOpRead)
 	expList.ExpList[size].Accept(sav, &expVarData)
 	if expVarData.ResultsAnyCount {
-		(*expListData)(data).ExpValueCount = datatype.ExpValueCountAny
+		(*expListData)(data).ExpValueCount = ExpValueCountAny
 	} else {
 		(*expListData)(data).ExpValueCount = size + 1
 	}
 }
 
-func newSemanticAnalysisVisitor(state *vm.State) *semanticAnalysisVisitor {
+func newSemanticAnalysisVisitor(state *State) *semanticAnalysisVisitor {
 	return &semanticAnalysisVisitor{state, nil}
 }
 
@@ -506,7 +504,7 @@ func (sav *semanticAnalysisVisitor) LeaveBlock() {
 }
 
 // Insert a name into current block, replace its info when existed
-func (sav *semanticAnalysisVisitor) InsertName(name *datatype.String) {
+func (sav *semanticAnalysisVisitor) InsertName(name *String) {
 	if sav.currentFunction == nil || sav.currentFunction.CurrentBlock == nil {
 		panic("assert")
 	}
@@ -514,7 +512,7 @@ func (sav *semanticAnalysisVisitor) InsertName(name *datatype.String) {
 }
 
 // Search LexicalScoping of a name
-func (sav *semanticAnalysisVisitor) SearchName(str *datatype.String) int {
+func (sav *semanticAnalysisVisitor) SearchName(str *String) int {
 	if sav.currentFunction == nil || sav.currentFunction.CurrentBlock == nil {
 		panic("assert")
 	}
@@ -646,7 +644,7 @@ func newFunctionNameData() *functionNameData {
 	return &functionNameData{}
 }
 
-func SemanticAnalysis(root SyntaxTree, state *vm.State) {
+func SemanticAnalysis(root SyntaxTree, state *State) {
 	if root == nil || state == nil {
 		panic("assert")
 	}

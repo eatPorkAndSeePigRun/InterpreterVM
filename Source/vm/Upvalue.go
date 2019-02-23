@@ -1,4 +1,4 @@
-package datatype
+package vm
 
 type Upvalue struct {
 	gcObjectField

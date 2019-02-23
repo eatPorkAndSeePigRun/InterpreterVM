@@ -1,4 +1,4 @@
-package datatype
+package vm
 
 type String struct {
 	gcObjectField

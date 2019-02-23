@@ -1,7 +1,6 @@
-package compiler
+package vm
 
 import (
-	"InterpreterVM/Source/datatype"
 	"unsafe"
 )
 
@@ -28,10 +27,10 @@ type SyntaxTree interface {
 
 type Chunk struct {
 	Block  SyntaxTree
-	Module *datatype.String
+	Module *String
 }
 
-func NewChunk(block SyntaxTree, module *datatype.String) *Chunk {
+func NewChunk(block SyntaxTree, module *String) *Chunk {
 	return &Chunk{block, module}
 }
 

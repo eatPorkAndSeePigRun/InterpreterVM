@@ -1,8 +1,6 @@
 package vm
 
 import (
-	"InterpreterVM/Source/compiler"
-	"InterpreterVM/Source/datatype"
 	"fmt"
 )
 
@@ -38,9 +36,9 @@ type ParseError struct {
 	what string
 }
 
-func NewParseError(str string, t compiler.TokenDetail) ParseError {
+func NewParseError(str string, t TokenDetail) ParseError {
 	what := fmt.Sprintf("%s:%d:%d '%s' %s",
-		t.Module.GetCStr(), t.Line, t.Column, compiler.GetTokenStr(t), str)
+		t.Module.GetCStr(), t.Line, t.Column, GetTokenStr(t), str)
 	return ParseError{what}
 }
 
@@ -53,9 +51,9 @@ type SemanticError struct {
 	what string
 }
 
-func NewSemanticError(str string, t compiler.TokenDetail) error {
+func NewSemanticError(str string, t TokenDetail) error {
 	what := fmt.Sprintf("%s:%d:%d '%s' %s",
-		t.Module.GetCStr(), t.Line, t.Column, compiler.GetTokenStr(t), str)
+		t.Module.GetCStr(), t.Line, t.Column, GetTokenStr(t), str)
 	return &SemanticError{what}
 }
 
@@ -100,19 +98,19 @@ func NewRuntimeError1(module string, line int, desc string) error {
 	return &RuntimeError{what}
 }
 
-func NewRuntimeError2(module string, line int, v datatype.Value, vName, expectType string) error {
+func NewRuntimeError2(module string, line int, v Value, vName, expectType string) error {
 	what := fmt.Sprintf("%s:%d %s is a %s value, expect a %s value",
 		module, line, vName, v.TypeName(), expectType)
 	return &RuntimeError{what}
 }
 
-func NewRuntimeError3(module string, line int, v datatype.Value, vName, vScope, op string) error {
+func NewRuntimeError3(module string, line int, v Value, vName, vScope, op string) error {
 	what := fmt.Sprintf("%s:%d attempt to %s %s '%s' (a %s value)",
 		module, line, op, vScope, vName, v.TypeName())
 	return &RuntimeError{what}
 }
 
-func NewRuntimeError4(module string, line int, v1, v2 datatype.Value, op string) error {
+func NewRuntimeError4(module string, line int, v1, v2 Value, op string) error {
 	what := fmt.Sprintf("%s:%d attempt to %s %s with %s",
 		module, line, op, v1.TypeName(), v2.TypeName())
 	return &RuntimeError{what}

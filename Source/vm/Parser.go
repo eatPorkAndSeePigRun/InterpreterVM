@@ -1,6 +1,4 @@
-package compiler
-
-import "InterpreterVM/Source/vm"
+package vm
 
 const (
 	prefixExpTypeNormal = iota
@@ -33,7 +31,7 @@ func (p *parserImpl) parseChunk() (SyntaxTree, error) {
 		panic(err)
 	}
 	if p.nextToken().Token != TokenEOF {
-		return nil, vm.NewParseError("expect <eof>", p.current)
+		return nil, NewParseError("expect <eof>", p.current)
 	}
 	return NewChunk(block, p.lexer.GetLexModule()), nil
 }
@@ -58,7 +56,7 @@ func (p *parserImpl) parseExp(left SyntaxTree, op TokenDetail, leftPriority int)
 			panic(err)
 		}
 	} else {
-		return nil, vm.NewParseError("unexpect token for exp.", p.lookAhead_)
+		return nil, NewParseError("unexpect token for exp.", p.lookAhead_)
 	}
 
 	for true {
@@ -112,7 +110,7 @@ func (p *parserImpl) parseMainExp() (SyntaxTree, error) {
 			panic(err)
 		}
 	default:
-		return nil, vm.NewParseError("unexpect token for exp.", p.lookAhead_)
+		return nil, NewParseError("unexpect token for exp.", p.lookAhead_)
 	}
 
 	return exp, nil
@@ -129,7 +127,7 @@ func (p *parserImpl) parseFunctionDef() (SyntaxTree, error) {
 func (p *parserImpl) parseFunctionBody() (SyntaxTree, error) {
 	line := p.lookAhead().Line
 	if p.nextToken().Token != '(' {
-		return nil, vm.NewParseError("unexpect token after 'function', expect '('", p.current)
+		return nil, NewParseError("unexpect token after 'function', expect '('", p.current)
 	}
 
 	var paramList SyntaxTree
@@ -143,7 +141,7 @@ func (p *parserImpl) parseFunctionBody() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != ')' {
-		return nil, vm.NewParseError("unexpect token after param list, expect ')'", p.current)
+		return nil, NewParseError("unexpect token after param list, expect ')'", p.current)
 	}
 
 	block, err := p.parseBlock()
@@ -152,7 +150,7 @@ func (p *parserImpl) parseFunctionBody() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenEnd {
-		return nil, vm.NewParseError("unexpect token after function body, expect 'end'", p.current)
+		return nil, NewParseError("unexpect token after function body, expect 'end'", p.current)
 	}
 
 	return NewFunctionBody(paramList, block, line), nil
@@ -174,7 +172,7 @@ func (p *parserImpl) parseParamList() (SyntaxTree, error) {
 				p.nextToken() // skip Token_VarArg
 				vararg = true
 			} else {
-				return nil, vm.NewParseError("unexpect token in param list", p.lookAhead_)
+				return nil, NewParseError("unexpect token in param list", p.lookAhead_)
 			}
 
 			nameList = names
@@ -183,7 +181,7 @@ func (p *parserImpl) parseParamList() (SyntaxTree, error) {
 		p.nextToken() // skip Token_VarArg
 		vararg = true
 	} else {
-		return nil, vm.NewParseError("unexpect token in param list", p.lookAhead_)
+		return nil, NewParseError("unexpect token in param list", p.lookAhead_)
 	}
 
 	return NewParamList(nameList, vararg), nil
@@ -199,7 +197,7 @@ func (p *parserImpl) parseBlock() (SyntaxTree, error) {
 		p.lookAhead().Token != TokenElseif &&
 		p.lookAhead().Token != TokenElse {
 		if hasReturn {
-			return nil, vm.NewParseError("unexpect statement after return statement", p.lookAhead_)
+			return nil, NewParseError("unexpect statement after return statement", p.lookAhead_)
 		}
 
 		if p.lookAhead().Token == TokenReturn {
@@ -286,7 +284,7 @@ func (p *parserImpl) parseDoStatement() (SyntaxTree, error) {
 		panic(err)
 	}
 	if p.nextToken().Token != TokenEnd {
-		return nil, vm.NewParseError("expect 'end' for do-statement", p.current)
+		return nil, NewParseError("expect 'end' for do-statement", p.current)
 	}
 
 	return NewDoStatement(block), nil
@@ -306,7 +304,7 @@ func (p *parserImpl) parseWhileStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenDo {
-		return nil, vm.NewParseError("expect 'do' for while-statement", p.current)
+		return nil, NewParseError("expect 'do' for while-statement", p.current)
 	}
 
 	block, err := p.parseBlock()
@@ -315,7 +313,7 @@ func (p *parserImpl) parseWhileStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenEnd {
-		return nil, vm.NewParseError("expect 'end' for while-statement", p.current)
+		return nil, NewParseError("expect 'end' for while-statement", p.current)
 	}
 
 	lastLine := p.current.Line
@@ -335,7 +333,7 @@ func (p *parserImpl) parseRepeatStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenUntil {
-		return nil, vm.NewParseError("expect 'until' for repeat-statement", p.current)
+		return nil, NewParseError("expect 'until' for repeat-statement", p.current)
 	}
 
 	line := p.current.Line
@@ -360,7 +358,7 @@ func (p *parserImpl) parseIfStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenThen {
-		return nil, vm.NewParseError("expect 'then' for if", p.current)
+		return nil, NewParseError("expect 'then' for if", p.current)
 	}
 
 	trueBranch, err := p.parseBlock()
@@ -389,7 +387,7 @@ func (p *parserImpl) parseElseIfStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenThen {
-		return nil, vm.NewParseError("expect 'then' for elseif", p.current)
+		return nil, NewParseError("expect 'then' for elseif", p.current)
 	}
 
 	trueBranch, err := p.parseBlock()
@@ -413,7 +411,7 @@ func (p *parserImpl) parseFalseBranchStatement() (SyntaxTree, error) {
 	} else if p.lookAhead().Token == TokenEnd {
 		p.nextToken() // skip 'end'
 	} else {
-		return nil, vm.NewParseError("expect 'end' for if", p.lookAhead_)
+		return nil, NewParseError("expect 'end' for if", p.lookAhead_)
 	}
 
 	return nil, nil
@@ -430,7 +428,7 @@ func (p *parserImpl) parseElseStatement() (SyntaxTree, error) {
 		panic(err)
 	}
 	if p.nextToken().Token != TokenEnd {
-		return nil, vm.NewParseError("expect 'end' for else", p.current)
+		return nil, NewParseError("expect 'end' for else", p.current)
 	}
 
 	return NewElseStatement(block), nil
@@ -455,7 +453,7 @@ func (p *parserImpl) parseFunctionStatement() SyntaxTree {
 
 func (p *parserImpl) parseFunctionName() (SyntaxTree, error) {
 	if p.nextToken().Token != TokenId {
-		return nil, vm.NewParseError("unexpect token after 'function'", p.current)
+		return nil, NewParseError("unexpect token after 'function'", p.current)
 	}
 
 	funcName := NewFunctionName()
@@ -464,7 +462,7 @@ func (p *parserImpl) parseFunctionName() (SyntaxTree, error) {
 	for p.lookAhead().Token == '.' {
 		p.nextToken() // skip '.'
 		if p.nextToken().Token != TokenId {
-			return nil, vm.NewParseError("unexpect token in function name after '.'", p.current)
+			return nil, NewParseError("unexpect token in function name after '.'", p.current)
 		}
 		funcName.Names = append(funcName.Names, p.current)
 	}
@@ -472,7 +470,7 @@ func (p *parserImpl) parseFunctionName() (SyntaxTree, error) {
 	if p.lookAhead().Token == ':' {
 		p.nextToken() // skip ':'
 		if p.nextToken().Token != TokenId {
-			return nil, vm.NewParseError("unexpect token in function name after ':'", p.current)
+			return nil, NewParseError("unexpect token in function name after ':'", p.current)
 		}
 		funcName.MemberName = p.current
 	}
@@ -487,7 +485,7 @@ func (p *parserImpl) parseForStatement() (SyntaxTree, error) {
 	}
 
 	if p.lookAhead().Token != TokenId {
-		return nil, vm.NewParseError("expect 'id' after 'for'", p.lookAhead_)
+		return nil, NewParseError("expect 'id' after 'for'", p.lookAhead_)
 	}
 
 	if p.lookAhead2().Token == '=' {
@@ -513,7 +511,7 @@ func (p *parserImpl) parseNumericForStatement() (SyntaxTree, error) {
 		panic(err)
 	}
 	if p.nextToken().Token != ',' {
-		return nil, vm.NewParseError("expect ',' in numeric-for", p.current)
+		return nil, NewParseError("expect ',' in numeric-for", p.current)
 	}
 
 	exp2, err := p.parseExp(nil, *NewTokenDetail(), 0)
@@ -531,7 +529,7 @@ func (p *parserImpl) parseNumericForStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenDo {
-		return nil, vm.NewParseError("expect 'do' to start numeric-for body", p.current)
+		return nil, NewParseError("expect 'do' to start numeric-for body", p.current)
 	}
 	block, err := p.parseBlock()
 	if err != nil {
@@ -539,7 +537,7 @@ func (p *parserImpl) parseNumericForStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenEnd {
-		return nil, vm.NewParseError("expect 'end' to complete numeric-for", p.current)
+		return nil, NewParseError("expect 'end' to complete numeric-for", p.current)
 	}
 	return NewNumericForStatement(*name, exp1, exp2, exp3, block), nil
 }
@@ -552,13 +550,13 @@ func (p *parserImpl) parseGenericForStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenIn {
-		return nil, vm.NewParseError("expect 'in' in generic-for", p.current)
+		return nil, NewParseError("expect 'in' in generic-for", p.current)
 	}
 
 	expList := p.parseExpList()
 
 	if p.nextToken().Token != TokenDo {
-		return nil, vm.NewParseError("expect 'do' to start generic-for body", p.current)
+		return nil, NewParseError("expect 'do' to start generic-for body", p.current)
 	}
 
 	block, err := p.parseBlock()
@@ -567,7 +565,7 @@ func (p *parserImpl) parseGenericForStatement() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenEnd {
-		return nil, vm.NewParseError("expect 'end' to complete generic-for", p.current)
+		return nil, NewParseError("expect 'end' to complete generic-for", p.current)
 	}
 
 	return NewGenericForStatement(nameList, expList, block, line), nil
@@ -584,7 +582,7 @@ func (p *parserImpl) parseLocalStatement() (SyntaxTree, error) {
 	} else if p.lookAhead().Token == TokenId {
 		return p.parseNameList()
 	} else {
-		return nil, vm.NewParseError("unexpect token after 'local'", p.lookAhead_)
+		return nil, NewParseError("unexpect token after 'local'", p.lookAhead_)
 	}
 }
 
@@ -595,7 +593,7 @@ func (p *parserImpl) parseLocalFunction() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != TokenId {
-		return nil, vm.NewParseError("expect 'id' after 'local function'", p.current)
+		return nil, NewParseError("expect 'id' after 'local function'", p.current)
 	}
 
 	name := p.current
@@ -625,7 +623,7 @@ func (p *parserImpl) parseLocalNameList() SyntaxTree {
 
 func (p *parserImpl) parseNameList() (SyntaxTree, error) {
 	if p.nextToken().Token != TokenId {
-		return nil, vm.NewParseError("expect 'id'", p.current)
+		return nil, NewParseError("expect 'id'", p.current)
 	}
 
 	nameList := NewNameList()
@@ -634,7 +632,7 @@ func (p *parserImpl) parseNameList() (SyntaxTree, error) {
 	for p.lookAhead().Token == ',' {
 		p.nextToken() // skip ','
 		if p.nextToken().Token != TokenId {
-			return nil, vm.NewParseError("expect 'id' after ','", p.current)
+			return nil, NewParseError("expect 'id' after ','", p.current)
 		}
 		nameList.Names = append(nameList.Names, p.current)
 	}
@@ -656,7 +654,7 @@ func (p *parserImpl) parseOtherStatement() (SyntaxTree, error) {
 
 		for p.lookAhead().Token != '=' {
 			if p.lookAhead().Token != ',' {
-				return nil, vm.NewParseError("expect ',' to split var", p.lookAhead_)
+				return nil, NewParseError("expect ',' to split var", p.lookAhead_)
 			}
 			p.nextToken() // skip ','
 			exp, err := p.parsePrefixExp(&prefixExpType)
@@ -664,7 +662,7 @@ func (p *parserImpl) parseOtherStatement() (SyntaxTree, error) {
 				panic(err)
 			}
 			if prefixExpType != prefixExpTypeVar {
-				return nil, vm.NewParseError("expect var here", p.current)
+				return nil, NewParseError("expect var here", p.current)
 			}
 			varList.VarList = append(varList.VarList, exp)
 		}
@@ -675,14 +673,14 @@ func (p *parserImpl) parseOtherStatement() (SyntaxTree, error) {
 	} else if prefixExpType == prefixExpTypeFunctionCall {
 		return exp, nil
 	} else {
-		return nil, vm.NewParseError("incomplete statement", p.current)
+		return nil, NewParseError("incomplete statement", p.current)
 	}
 }
 
 func (p *parserImpl) parsePrefixExp(prefixExpType *int) (SyntaxTree, error) {
 	p.nextToken()
 	if p.current.Token != TokenId && p.current.Token != '(' {
-		return nil, vm.NewParseError("unexpect token here", p.current)
+		return nil, NewParseError("unexpect token here", p.current)
 	}
 
 	var exp SyntaxTree
@@ -694,7 +692,7 @@ func (p *parserImpl) parsePrefixExp(prefixExpType *int) (SyntaxTree, error) {
 			panic(err)
 		}
 		if p.nextToken().Token != ')' {
-			return nil, vm.NewParseError("expect ')'", p.current)
+			return nil, NewParseError("expect ')'", p.current)
 		}
 		if prefixExpType != nil {
 			*prefixExpType = prefixExpTypeNormal
@@ -747,12 +745,12 @@ func (p *parserImpl) parseVar(table SyntaxTree) (SyntaxTree, error) {
 			panic(err)
 		}
 		if p.nextToken().Token != ']' {
-			return nil, vm.NewParseError("expect ']'", p.current)
+			return nil, NewParseError("expect ']'", p.current)
 		}
 		return NewIndexAccessor(table, exp, line), nil
 	} else {
 		if p.nextToken().Token != TokenId {
-			return nil, vm.NewParseError("expect 'id' after '.'", p.current)
+			return nil, NewParseError("expect 'id' after '.'", p.current)
 		}
 		return NewMemberAccessor(table, p.current), nil
 	}
@@ -762,7 +760,7 @@ func (p *parserImpl) parseFunctionCall(caller SyntaxTree) (SyntaxTree, error) {
 	if p.lookAhead().Token == ':' {
 		p.nextToken()
 		if p.nextToken().Token != TokenId {
-			return nil, vm.NewParseError("expect 'id' after ':'", p.current)
+			return nil, NewParseError("expect 'id' after ':'", p.current)
 		}
 
 		member := p.current
@@ -810,7 +808,7 @@ func (p *parserImpl) parseArgs() (SyntaxTree, error) {
 		}
 
 		if p.nextToken().Token != ')' {
-			return nil, vm.NewParseError("expect ')' to end function call args", p.current)
+			return nil, NewParseError("expect ')' to end function call args", p.current)
 		}
 	}
 	return NewFuncCallArgs(arg, argType), nil
@@ -861,13 +859,13 @@ func (p *parserImpl) parseTableConstructor() (SyntaxTree, error) {
 		if p.lookAhead().Token != '}' {
 			p.nextToken()
 			if p.current.Token != ',' && p.current.Token != ';' {
-				return nil, vm.NewParseError("expect ',' or ';' to split table fields", p.current)
+				return nil, NewParseError("expect ',' or ';' to split table fields", p.current)
 			}
 		}
 	}
 
 	if p.nextToken().Token != '}' {
-		return nil, vm.NewParseError("expect '}' for table", p.current)
+		return nil, NewParseError("expect '}' for table", p.current)
 	}
 	return table, nil
 }
@@ -885,11 +883,11 @@ func (p *parserImpl) parseTableIndexField() (SyntaxTree, error) {
 	}
 
 	if p.nextToken().Token != ']' {
-		return nil, vm.NewParseError("expect ']'", p.current)
+		return nil, NewParseError("expect ']'", p.current)
 	}
 
 	if p.nextToken().Token != '=' {
-		return nil, vm.NewParseError("expect '='", p.current)
+		return nil, NewParseError("expect '='", p.current)
 	}
 
 	value, err := p.parseExp(nil, *NewTokenDetail(), 0)

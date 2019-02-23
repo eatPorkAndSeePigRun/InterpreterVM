@@ -1,10 +1,8 @@
-package datatype
-
-import "InterpreterVM/Source/vm"
+package vm
 
 const ExpValueCountAny = -1
 
-type CFunctionType func(state *vm.State) int
+type CFunctionType func(state *State) int
 
 const (
 	ValueTNil = iota

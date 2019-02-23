@@ -1,8 +1,6 @@
-package compiler
+package vm
 
 import (
-	"InterpreterVM/Source/datatype"
-	"InterpreterVM/Source/vm"
 	"strconv"
 	"unicode"
 )
@@ -65,8 +63,8 @@ func (l Lexer) setEofTokenDetail(detail *TokenDetail) {
 type CharInStream func() uint8
 
 type Lexer struct {
-	state    *vm.State
-	module   *datatype.String
+	state    *State
+	module   *String
 	inStream CharInStream
 
 	current uint8
@@ -76,7 +74,7 @@ type Lexer struct {
 	tokenBuffer string
 }
 
-func NewLexer(state *vm.State, module *datatype.String, in CharInStream) Lexer {
+func NewLexer(state *State, module *String, in CharInStream) Lexer {
 	var l Lexer
 	l.state = state
 	l.module = module
@@ -144,7 +142,7 @@ func (l *Lexer) GetToken(detail *TokenDetail) (int, error) {
 		case '~':
 			next := l.next()
 			if next != '=' {
-				return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column, "expect '=' after '~'")
+				return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "expect '=' after '~'")
 			}
 			l.current = l.next()
 			return l.normalTokenDetail(detail, TokenNotEqual), nil
@@ -172,7 +170,7 @@ func (l *Lexer) GetToken(detail *TokenDetail) (int, error) {
 }
 
 // Get current lex module name.
-func (l Lexer) GetLexModule() *datatype.String {
+func (l Lexer) GetLexModule() *String {
 	return l.module
 }
 
@@ -221,7 +219,7 @@ func (l *Lexer) lexMultiLineComment() error {
 			}
 		} else if l.current == EOF {
 			// uncompleted multi-line comment
-			return vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+			return NewLexError(l.module.GetCStr(), l.line, l.column,
 				"expect complete multi-line comment before <eof>")
 		} else if l.current == '\r' || l.current == '\n' {
 			l.lexNewLine()
@@ -291,9 +289,9 @@ func (l *Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, poin
 	}
 
 	if point && !integerPart && !fractionalPart {
-		return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect '.'")
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect '.'")
 	} else if !point && !integerPart && !fractionalPart {
-		return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
 			"unexpect incomplete number'", l.tokenBuffer, "'")
 	}
 
@@ -306,7 +304,7 @@ func (l *Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, poin
 		}
 
 		if !unicode.IsDigit(rune(l.current)) {
-			return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+			return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
 				"expect exponent after '", l.tokenBuffer, "'")
 		}
 
@@ -342,7 +340,7 @@ func (l *Lexer) lexMultiLineString(detail *TokenDetail) (int, error) {
 	}
 
 	if l.current != '[' {
-		return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
 			"incomplete multi-line string at '", l.tokenBuffer, "'")
 	}
 
@@ -385,7 +383,7 @@ func (l *Lexer) lexMultiLineString(detail *TokenDetail) (int, error) {
 		}
 	}
 
-	return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column, "incomplete multi-line string at <eof>")
+	return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "incomplete multi-line string at <eof>")
 }
 
 func (l *Lexer) lexSingleLineString(detail *TokenDetail) (int, error) {
@@ -395,11 +393,11 @@ func (l *Lexer) lexSingleLineString(detail *TokenDetail) (int, error) {
 
 	for l.current != quote {
 		if l.current == EOF {
-			return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+			return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
 				"incomplete string at <eof>")
 		}
 		if l.current == '\r' || l.current == '\n' {
-			return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+			return -1, NewLexError(l.module.GetCStr(), l.line, l.column,
 				"incomplete string at this line")
 		}
 		return -1, l.lexStringChar()
@@ -441,7 +439,7 @@ func (l *Lexer) lexStringChar() error {
 				l.current = l.next()
 			}
 			if i == 0 {
-				return vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+				return NewLexError(l.module.GetCStr(), l.line, l.column,
 					"unexpect character after '\\x'")
 			}
 			num, err := strconv.ParseInt(hex, 16, 8)
@@ -463,7 +461,7 @@ func (l *Lexer) lexStringChar() error {
 			l.tokenBuffer = l.tokenBuffer + string(num)
 			return nil
 		} else {
-			return vm.NewLexError(l.module.GetCStr(), l.line, l.column,
+			return NewLexError(l.module.GetCStr(), l.line, l.column,
 				"unexpect character after '\\'")
 		}
 	} else {
@@ -476,7 +474,7 @@ func (l *Lexer) lexStringChar() error {
 
 func (l *Lexer) lexId(detail *TokenDetail) (int, error) {
 	if !unicode.IsLetter(rune(l.current)) && l.current != '_' {
-		return -1, vm.NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect character")
+		return -1, NewLexError(l.module.GetCStr(), l.line, l.column, "unexpect character")
 	}
 
 	l.tokenBuffer = string(l.current)

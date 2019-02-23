@@ -20,8 +20,9 @@ func repl(state vm.State) {
 		var buffer [1024]byte
 		n, err := os.Stdin.Read(buffer[:])
 		if err != nil {
-			fmt.Println(err) // TODO
-		} else if n == 0 {
+			fmt.Println(err)
+		}
+		if n == 0 {
 			break
 		}
 

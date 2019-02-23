@@ -1,4 +1,4 @@
-package datatype
+package vm
 
 type StringPool struct {
 	temp    String

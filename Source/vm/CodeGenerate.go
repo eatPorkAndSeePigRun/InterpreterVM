@@ -1,8 +1,6 @@
-package compiler
+package vm
 
 import (
-	"InterpreterVM/Source/datatype"
-	"InterpreterVM/Source/vm"
 	"container/list"
 	"unsafe"
 )
@@ -37,7 +35,7 @@ type generateBlock struct {
 	// Local names
 	// Same names are the same instance String, so using String
 	// pointer as key is fine
-	Names map[*datatype.String]localNameInfo
+	Names map[*String]localNameInfo
 	// Current loop ast info
 	CurrentLoop loopInfo
 }
@@ -65,12 +63,12 @@ func newLoopJumpInfo(loopAst SyntaxTree, jumpType int, instructionIndex int) *lo
 // Lexical function struct for code generator
 type generateFunction struct {
 	Parent       *generateFunction
-	CurrentBlock *generateBlock     // Current block
-	Function_    *datatype.Function // Current function for code generate
-	FuncIndex    int                // Index of current function in parent
-	RegisterId   int                // Register id generator
-	RegisterMax  int                // Max register count used in current function
-	LoopJumps    list.List          // To be filled loop jump info, and its element.value is *loopJumpInfo
+	CurrentBlock *generateBlock // Current block
+	Function_    *Function      // Current function for code generate
+	FuncIndex    int            // Index of current function in parent
+	RegisterId   int            // Register id generator
+	RegisterMax  int            // Max register count used in current function
+	LoopJumps    list.List      // To be filled loop jump info, and its element.value is *loopJumpInfo
 }
 
 func newGenerateFunction() *generateFunction {
@@ -78,11 +76,11 @@ func newGenerateFunction() *generateFunction {
 }
 
 type codeGenerateVisitor struct {
-	state           *vm.State
+	state           *State
 	currentFunction *generateFunction // Current code generating function
 }
 
-func newCodeGenerateVisitor(state *vm.State) *codeGenerateVisitor {
+func newCodeGenerateVisitor(state *State) *codeGenerateVisitor {
 	return &codeGenerateVisitor{state: state}
 }
 
@@ -102,7 +100,10 @@ func (cgv *codeGenerateVisitor) VisitChunk(chunk *Chunk, data unsafe.Pointer) {
 		closure.SetPrototype(function)
 
 		// Put closure on stack
-		top := cgv.state // TODO
+		top := cgv.state.stack.Top
+		cgv.state.stack.Top = vPointerAdd(cgv.state.stack.Top, 1)
+		top.Closure = closure
+		top.Type = ValueTClosure
 	}
 }
 
@@ -122,12 +123,12 @@ func (cgv *codeGenerateVisitor) VisitReturnStatement(retStmt *ReturnStatement, d
 		if err != nil {
 			panic(err)
 		}
-		eListData := newCgExpListData(registerId, datatype.ExpValueCountAny)
+		eListData := newCgExpListData(registerId, ExpValueCountAny)
 		retStmt.ExpList.Accept(cgv, &eListData)
 	}
 
 	function := cgv.GetCurrentFunction()
-	instruction := vm.AsBxCode(vm.OpTypeRet, registerId, retStmt.ExpValueCount)
+	instruction := AsBxCode(OpTypeRet, registerId, retStmt.ExpValueCount)
 	function.AddInstruction(instruction, retStmt.Line)
 }
 
@@ -136,7 +137,7 @@ func (cgv *codeGenerateVisitor) VisitBreakStatement(breakStmt *BreakStatement, d
 		panic("assert")
 	}
 	function := cgv.GetCurrentFunction()
-	instruction := vm.AsBxCode(vm.OpTypeJmp, 0, 0)
+	instruction := AsBxCode(OpTypeJmp, 0, 0)
 	index := function.AddInstruction(instruction, breakStmt.Break.Line)
 	cgv.AddLoopJumpInfo(breakStmt.Loop, index, jumpTail)
 }
@@ -159,14 +160,14 @@ func (cgv *codeGenerateVisitor) VisitWhileStatement(whileStmt *WhileStatement, d
 
 	// Jump to loop tail when expression is false
 	function := cgv.GetCurrentFunction()
-	instruction := vm.AsBxCode(vm.OpTypeJmpFalse, registerId, 0)
+	instruction := AsBxCode(OpTypeJmpFalse, registerId, 0)
 	index := function.AddInstruction(instruction, whileStmt.FirstLine)
 	cgv.AddLoopJumpInfo(whileStmt, index, jumpTail)
 
 	whileStmt.Block.Accept(cgv, nil)
 
 	// Jump to loop head
-	instruction = vm.AsBxCode(vm.OpTypeJmp, 0, 0)
+	instruction = AsBxCode(OpTypeJmp, 0, 0)
 	index = function.AddInstruction(instruction, whileStmt.LastLine)
 	cgv.AddLoopJumpInfo(whileStmt, index, jumpHead)
 }
@@ -190,7 +191,7 @@ func (cgv *codeGenerateVisitor) VisitRepeatStatement(repeatStmt *RepeatStatement
 
 	// Jump to head when exp value is true
 	function := cgv.GetCurrentFunction()
-	instruction := vm.AsBxCode(vm.OpTypeJmpFalse, registerId, 0)
+	instruction := AsBxCode(OpTypeJmpFalse, registerId, 0)
 	index := function.AddInstruction(instruction, repeatStmt.Line)
 	cgv.AddLoopJumpInfo(repeatStmt, index, jumpHead)
 }
@@ -246,7 +247,7 @@ func (cgv *codeGenerateVisitor) VisitNumericForStatement(numFor *NumericForState
 			numFor.Exp3.Accept(cgv, &stepExpData)
 		} else {
 			// Default step is 1
-			instruction := vm.ACode(vm.OpTypeLoadInt, stepRegister)
+			instruction := ACode(OpTypeLoadInt, stepRegister)
 			function.AddInstruction(instruction, line)
 			// Int value 1
 			instruction.OpCode = 1
@@ -255,7 +256,7 @@ func (cgv *codeGenerateVisitor) VisitNumericForStatement(numFor *NumericForState
 	}
 
 	// Init 'for' var, limit, step value
-	instruction := vm.ABCCode(vm.OpTypeFillNil, varRegister, limitRegister, stepRegister)
+	instruction := ABCCode(OpTypeFillNil, varRegister, limitRegister, stepRegister)
 	function.AddInstruction(instruction, line)
 
 	NewGuard(func() { cgv.EnterLoop(numFor) }, func() { cgv.LeaveLoop() })
@@ -263,7 +264,7 @@ func (cgv *codeGenerateVisitor) VisitNumericForStatement(numFor *NumericForState
 		NewGuard(func() { cgv.EnterBlock() }, func() { cgv.LeaveBlock() })
 
 		// Check 'for', continu loop or not
-		instruction := vm.ABCCode(vm.OpTypeForStep, varRegister, limitRegister, stepRegister)
+		instruction := ABCCode(OpTypeForStep, varRegister, limitRegister, stepRegister)
 		function.AddInstruction(instruction, line)
 
 		// Break loop, prepare to jump to the end of the loop
@@ -278,17 +279,17 @@ func (cgv *codeGenerateVisitor) VisitNumericForStatement(numFor *NumericForState
 		cgv.InsertName(numFor.Name.Str, nameRegister)
 
 		// Prepare name value
-		instruction = vm.ABCode(vm.OpTypeMove, nameRegister, varRegister)
+		instruction = ABCode(OpTypeMove, nameRegister, varRegister)
 		function.AddInstruction(instruction, line)
 
 		numFor.Block.Accept(cgv, nil)
 
 		// var = var + step
-		instruction = vm.ABCCode(vm.OpTypeAdd, varRegister, varRegister, stepRegister)
+		instruction = ABCCode(OpTypeAdd, varRegister, varRegister, stepRegister)
 		function.AddInstruction(instruction, line)
 	}
 	// Jump to the begin of the loop
-	instruction = vm.AsBxCode(vm.OpTypeJmpFalse, 0, 0)
+	instruction = AsBxCode(OpTypeJmpFalse, 0, 0)
 	index := function.AddInstruction(instruction, line)
 	cgv.AddLoopJumpInfo(numFor, index, jumpHead)
 }
@@ -340,14 +341,14 @@ func (cgv *codeGenerateVisitor) VisitGenericForStatement(genFor *GenericForState
 
 		// Call iterate function
 		move := func(dst, src int) {
-			instruction := vm.ABCode(vm.OpTypeMove, dst, src)
+			instruction := ABCode(OpTypeMove, dst, src)
 			function.AddInstruction(instruction, line)
 		}
 		move(tempFunc, funcRegister)
 		move(tempState, stateRegister)
 		move(tempVar, varRegister)
 
-		instruction := vm.ABCCode(vm.OpTypeCall, tempFunc, 2+1, nameEnd-nameStart+1)
+		instruction := ABCCode(OpTypeCall, tempFunc, 2+1, nameEnd-nameStart+1)
 		function.AddInstruction(instruction, line)
 
 		// Copy results to registers of names
@@ -357,7 +358,7 @@ func (cgv *codeGenerateVisitor) VisitGenericForStatement(genFor *GenericForState
 		}
 
 		// Break the loop when the first name value is nil
-		instruction = vm.AsBxCode(vm.OpTypeJmpNil, nameStart, 0)
+		instruction = AsBxCode(OpTypeJmpNil, nameStart, 0)
 		index := function.AddInstruction(instruction, line)
 		cgv.AddLoopJumpInfo(genFor, index, jumpTail)
 
@@ -368,7 +369,7 @@ func (cgv *codeGenerateVisitor) VisitGenericForStatement(genFor *GenericForState
 	}
 
 	// Jump to loop start
-	instruction := vm.AsBxCode(vm.OpTypeJmp, 0, 0)
+	instruction := AsBxCode(OpTypeJmp, 0, 0)
 	index := function.AddInstruction(instruction, line)
 	cgv.AddLoopJumpInfo(genFor, index, jumpHead)
 }
@@ -403,27 +404,27 @@ func (cgv *codeGenerateVisitor) VisitFunctionName(funcName *FunctionName, data u
 		if len(funcName.Names) != 1 {
 			panic("assert")
 		}
-		var instruction vm.Instruction
+		var instruction Instruction
 		switch funcName.Scoping {
 		case LexicalScopingGlobal:
 			// Define a global function
 			index := function.AddConstString(firstName)
-			instruction = vm.ABxCode(vm.OpTypeSetGlobal, funcRegister, index)
+			instruction = ABxCode(OpTypeSetGlobal, funcRegister, index)
 		case LexicalScopingUpvalue:
 			// Change a upvalue to a function
 			index, err := cgv.PrepareUpvalue(firstName)
 			if err != nil {
 				panic(err)
 			}
-			instruction = vm.ABCode(vm.OpTypeSetUpvalue, funcRegister, index)
+			instruction = ABCode(OpTypeSetUpvalue, funcRegister, index)
 		case LexicalScopingLocal:
 			// Change a local variable to a function
 			localName := cgv.SearchLocalName(firstName)
-			instruction = vm.ABCode(vm.OpTypeMove, localName.RegisterId, funcRegister)
+			instruction = ABCode(OpTypeMove, localName.RegisterId, funcRegister)
 		}
 		function.AddInstruction(instruction, firstLine)
 	} else {
-		var instruction vm.Instruction
+		var instruction Instruction
 		tableRegister, err := cgv.GenerateRegisterId()
 		if err != nil {
 			panic(err)
@@ -432,18 +433,18 @@ func (cgv *codeGenerateVisitor) VisitFunctionName(funcName *FunctionName, data u
 		case LexicalScopingGlobal:
 			// Load global variable to table register
 			index := function.AddConstString(firstName)
-			instruction = vm.ABxCode(vm.OpTypeGetGlobal, tableRegister, index)
+			instruction = ABxCode(OpTypeGetGlobal, tableRegister, index)
 		case LexicalScopingUpvalue:
 			// Load upvalue to table register
 			index, err := cgv.PrepareUpvalue(firstName)
 			if err != nil {
 				panic(err)
 			}
-			instruction = vm.ABCode(vm.OpTypeMove, tableRegister, index)
+			instruction = ABCode(OpTypeMove, tableRegister, index)
 		case LexicalScopingLocal:
 			// Load local variable to table register
 			localName := cgv.SearchLocalName(firstName)
-			instruction = vm.ABCode(vm.OpTypeMove, tableRegister, localName.RegisterId)
+			instruction = ABCode(OpTypeMove, tableRegister, localName.RegisterId)
 		}
 		function.AddInstruction(instruction, firstLine)
 
@@ -460,9 +461,9 @@ func (cgv *codeGenerateVisitor) VisitFunctionName(funcName *FunctionName, data u
 			panic(err)
 		}
 
-		loadKey := func(name *datatype.String, line int) {
+		loadKey := func(name *String, line int) {
 			index := function.AddConstString(name)
-			instruction = vm.ABxCode(vm.OpTypeLoadConst, keyRegister, index)
+			instruction = ABxCode(OpTypeLoadConst, keyRegister, index)
 			function.AddInstruction(instruction, line)
 		}
 
@@ -471,7 +472,7 @@ func (cgv *codeGenerateVisitor) VisitFunctionName(funcName *FunctionName, data u
 			name := funcName.Names[i].Str
 			line := funcName.Names[i].Line
 			loadKey(name, line)
-			instruction = vm.ABCCode(vm.OpTypeGetTable, tableRegister, keyRegister, tableRegister)
+			instruction = ABCCode(OpTypeGetTable, tableRegister, keyRegister, tableRegister)
 			function.AddInstruction(instruction, line)
 		}
 
@@ -483,7 +484,7 @@ func (cgv *codeGenerateVisitor) VisitFunctionName(funcName *FunctionName, data u
 			token = &funcName.Names[len(funcName.Names)-1]
 		}
 		loadKey(token.Str, token.Line)
-		instruction = vm.ABCCode(vm.OpTypeSetTable, tableRegister, keyRegister, funcRegister)
+		instruction = ABCCode(OpTypeSetTable, tableRegister, keyRegister, funcRegister)
 
 		function.AddInstruction(instruction, token.Line)
 	}
@@ -530,7 +531,7 @@ func (cgv *codeGenerateVisitor) VisitAssignmentStatement(assignStmt *AssignmentS
 	endRegister := registerId + assignStmt.VarCount
 	cgv.ResetRegisterIdGenerator(endRegister)
 	if cgv.IsRegisterCountOverflow() {
-		panic(vm.NewCodeGenerateError(cgv.GetCurrentFunction().GetModule().GetCStr(),
+		panic(NewCodeGenerateError(cgv.GetCurrentFunction().GetModule().GetCStr(),
 			assignStmt.Line, "assignment statement is too complex"))
 	}
 
@@ -577,21 +578,21 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 		switch term.Scoping {
 		case LexicalScopingGlobal:
 			index := function.AddConstString(term.Token.Str)
-			instruction := vm.ABxCode(vm.OpTypeSetGlobal, registerId, index)
+			instruction := ABxCode(OpTypeSetGlobal, registerId, index)
 			function.AddInstruction(instruction, term.Token.Line)
 		case LexicalScopingLocal:
 			local := cgv.SearchLocalName(term.Token.Str)
 			if local == nil {
 				panic("assert")
 			}
-			instruction := vm.ABCode(vm.OpTypeMove, local.RegisterId, registerId)
+			instruction := ABCode(OpTypeMove, local.RegisterId, registerId)
 			function.AddInstruction(instruction, term.Token.Line)
 		case LexicalScopingUpvalue:
 			index, err := cgv.PrepareUpvalue(term.Token.Str)
 			if err != nil {
 				panic("assert")
 			}
-			instruction := vm.ABCode(vm.OpTypeSetUpvalue, registerId, index)
+			instruction := ABCode(OpTypeSetUpvalue, registerId, index)
 			function.AddInstruction(instruction, term.Token.Line)
 		}
 		return
@@ -600,7 +601,7 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 	// Generate code for SemanticOpRead
 	// Just return when term is SemanticOpRead and no registers to fill
 	if term.Semantic == SemanticOpRead &&
-		endRegister != datatype.ExpValueCountAny &&
+		endRegister != ExpValueCountAny &&
 		registerId >= endRegister {
 		return
 	}
@@ -614,7 +615,7 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 		} else {
 			index = function.AddConstString(term.Token.Str)
 		}
-		instruction := vm.ABxCode(vm.OpTypeLoadConst, registerId, index)
+		instruction := ABxCode(OpTypeLoadConst, registerId, index)
 		registerId++
 		function.AddInstruction(instruction, term.Token.Line)
 	case TokenId:
@@ -622,7 +623,7 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 		case LexicalScopingGlobal:
 			// Get value from global table by key index
 			index := function.AddConstString(term.Token.Str)
-			instruction := vm.ABxCode(vm.OpTypeGetGlobal, registerId, index)
+			instruction := ABxCode(OpTypeGetGlobal, registerId, index)
 			registerId++
 			function.AddInstruction(instruction, term.Token.Line)
 		case LexicalScopingLocal:
@@ -631,7 +632,7 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 			if local == nil {
 				panic("assert")
 			}
-			instruction := vm.ABCode(vm.OpTypeMove, registerId, local.RegisterId)
+			instruction := ABCode(OpTypeMove, registerId, local.RegisterId)
 			registerId++
 			function.AddInstruction(instruction, term.Token.Line)
 		case LexicalScopingUpvalue:
@@ -640,7 +641,7 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 			if err != nil {
 				panic("assert")
 			}
-			instruction := vm.ABCode(vm.OpTypeGetUpvalue, registerId, index)
+			instruction := ABCode(OpTypeGetUpvalue, registerId, index)
 			registerId++
 			function.AddInstruction(instruction, term.Token.Line)
 		}
@@ -651,22 +652,22 @@ func (cgv *codeGenerateVisitor) VisitTerminator(term *Terminator, data unsafe.Po
 		} else {
 			bvalue = 0
 		}
-		instruction := vm.ABCode(vm.OpTypeLoadBool, registerId, bvalue)
+		instruction := ABCode(OpTypeLoadBool, registerId, bvalue)
 		registerId++
 		function.AddInstruction(instruction, term.Token.Line)
 	case TokenNil:
-		instruction := vm.ACode(vm.OpTypeLoadNil, registerId)
+		instruction := ACode(OpTypeLoadNil, registerId)
 		registerId++
 		function.AddInstruction(instruction, term.Token.Line)
 	case TokenVarArg:
 		// Copy vararg to registers which start from registerId
 		var expectResults int
-		if endRegister == datatype.ExpValueCountAny {
-			expectResults = datatype.ExpValueCountAny
+		if endRegister == ExpValueCountAny {
+			expectResults = ExpValueCountAny
 		} else {
 			expectResults = endRegister - registerId
 		}
-		instruction := vm.AsBxCode(vm.OpTypeVarArg, registerId, expectResults)
+		instruction := AsBxCode(OpTypeVarArg, registerId, expectResults)
 		function.AddInstruction(instruction, term.Token.Line)
 
 		// All registers will be filled when executing, so do not fill nil to remain registers
@@ -681,7 +682,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 	registerId := eVarData.StartRegister
 	endRegister := eVarData.EndRegister
 
-	if endRegister != datatype.ExpValueCountAny && registerId >= endRegister {
+	if endRegister != ExpValueCountAny && registerId >= endRegister {
 		return
 	}
 
@@ -697,11 +698,11 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 		// satisfy semantic of operator
 		var opType int
 		if token == TokenAnd {
-			opType = vm.OpTypeJmpFalse
+			opType = OpTypeJmpFalse
 		} else {
-			opType = vm.OpTypeJmpTrue
+			opType = OpTypeJmpTrue
 		}
-		instruction := vm.AsBxCode(opType, registerId, 0)
+		instruction := AsBxCode(opType, registerId, 0)
 		index := function.AddInstruction(instruction, line)
 
 		// Calculate right expression
@@ -726,7 +727,7 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 	rightRegister := 0
 	// Generate code to calculate right expression
 	{
-		if endRegister != datatype.ExpValueCountAny && registerId+1 < endRegister {
+		if endRegister != ExpValueCountAny && registerId+1 < endRegister {
 			// If parent AST provide more than one register, then use the second
 			// register as temp register of right expression
 			eVarData := newCgExpVarData(registerId+1, registerId+2)
@@ -747,37 +748,37 @@ func (cgv *codeGenerateVisitor) VisitBinaryExpression(binaryExp *BinaryExpressio
 	var opType int
 	switch token {
 	case '+':
-		opType = vm.OpTypeAdd
+		opType = OpTypeAdd
 	case '-':
-		opType = vm.OpTypeSub
+		opType = OpTypeSub
 	case '*':
-		opType = vm.OpTypeMul
+		opType = OpTypeMul
 	case '/':
-		opType = vm.OpTypeDiv
+		opType = OpTypeDiv
 	case '^':
-		opType = vm.OpTypePow
+		opType = OpTypePow
 	case '%':
-		opType = vm.OpTypeMod
+		opType = OpTypeMod
 	case '<':
-		opType = vm.OpTypeLess
+		opType = OpTypeLess
 	case '>':
-		opType = vm.OpTypeGreater
+		opType = OpTypeGreater
 	case TokenConcat:
-		opType = vm.OpTypeConcat
+		opType = OpTypeConcat
 	case TokenEqual:
-		opType = vm.OpTypeEqual
+		opType = OpTypeEqual
 	case TokenNotEqual:
-		opType = vm.OpTypeUnEqual
+		opType = OpTypeUnEqual
 	case TokenLessEqual:
-		opType = vm.OpTypeLessEqual
+		opType = OpTypeLessEqual
 	case TokenGreaterEqual:
-		opType = vm.OpTypeGreaterEqual
+		opType = OpTypeGreaterEqual
 	default:
 		panic("assert")
 	}
 
 	// Generate instruction to calculate
-	instruction := vm.ABCCode(opType, registerId, leftRegister, rightRegister)
+	instruction := ABCCode(opType, registerId, leftRegister, rightRegister)
 	leftRegister++
 	function.AddInstruction(instruction, line)
 	cgv.fillRemainRegisterNil(registerId, endRegister, line)
@@ -788,7 +789,7 @@ func (cgv *codeGenerateVisitor) VisitUnaryExpression(unaryExp *UnaryExpression, 
 	registerId := eVarData.StartRegister
 	endRegister := eVarData.EndRegister
 
-	if endRegister != datatype.ExpValueCountAny && registerId >= endRegister {
+	if endRegister != ExpValueCountAny && registerId >= endRegister {
 		return
 	}
 
@@ -798,18 +799,18 @@ func (cgv *codeGenerateVisitor) VisitUnaryExpression(unaryExp *UnaryExpression, 
 	var opType int
 	switch unaryExp.OpToken.Token {
 	case '-':
-		opType = vm.OpTypeNeg
+		opType = OpTypeNeg
 	case '#':
-		opType = vm.OpTypeLen
+		opType = OpTypeLen
 	case TokenNot:
-		opType = vm.OpTypeNot
+		opType = OpTypeNot
 	default:
 		panic("assert")
 	}
 
 	// Generate instruction
 	function := cgv.GetCurrentFunction()
-	instruction := vm.ACode(opType, registerId)
+	instruction := ACode(opType, registerId)
 	registerId++
 	function.AddInstruction(instruction, unaryExp.OpToken.Line)
 
@@ -850,9 +851,9 @@ func (cgv *codeGenerateVisitor) VisitFunctionBody(funcBody *FunctionBody, data u
 	eVarData := (*cgExpVarData)(data)
 	registerId := eVarData.StartRegister
 	endRegister := eVarData.EndRegister
-	if endRegister == datatype.ExpValueCountAny || registerId < endRegister {
+	if endRegister == ExpValueCountAny || registerId < endRegister {
 		function := cgv.GetCurrentFunction()
-		i := vm.ABxCode(vm.OpTypeClosure, registerId, childIndex)
+		i := ABxCode(OpTypeClosure, registerId, childIndex)
 		registerId++
 		function.AddInstruction(i, funcBody.Line)
 	}
@@ -887,7 +888,7 @@ func (cgv *codeGenerateVisitor) VisitNameList(nameList *NameList, data unsafe.Po
 		// Add init instructions when need
 		if needInit {
 			function := cgv.GetCurrentFunction()
-			instruction := vm.ACode(vm.OpTypeLoadNil, registerId)
+			instruction := ACode(OpTypeLoadNil, registerId)
 			function.AddInstruction(instruction, nameList.Names[i].Line)
 		}
 	}
@@ -899,13 +900,13 @@ func (cgv *codeGenerateVisitor) VisitTableDefine(tableDef *TableDefine, data uns
 	endRegister := eVarData.EndRegister
 
 	// No register, then do not generate code
-	if endRegister != datatype.ExpValueCountAny && registerId >= endRegister {
+	if endRegister != ExpValueCountAny && registerId >= endRegister {
 		return
 	}
 
 	// New table
 	function := cgv.GetCurrentFunction()
-	instruction := vm.ACode(vm.OpTypeNewTable, registerId)
+	instruction := ACode(OpTypeNewTable, registerId)
 	function.AddInstruction(instruction, tableDef.Line)
 
 	if len(tableDef.Fields) != 0 {
@@ -947,7 +948,7 @@ func (cgv *codeGenerateVisitor) VisitTableNameField(tableNField *TableNameField,
 	if err != nil {
 		panic(err)
 	}
-	instruction := vm.AsBxCode(vm.OpTypeLoadConst, keyRegister, keyIndex)
+	instruction := AsBxCode(OpTypeLoadConst, keyRegister, keyIndex)
 	function.AddInstruction(instruction, tableNField.Name.Line)
 
 	cgv.setTableFieldValue(tableNField, tableRegister, keyRegister, tableNField.Name.Line)
@@ -963,7 +964,7 @@ func (cgv *codeGenerateVisitor) VisitTableArrayField(tableAField *TableArrayFiel
 	if err != nil {
 		panic(err)
 	}
-	instruction := vm.ACode(vm.OpTypeLoadInt, keyRegister)
+	instruction := ACode(OpTypeLoadInt, keyRegister)
 	function.AddInstruction(instruction, tableAField.Line)
 	instruction.OpCode = int(fieldData.ArrayIndex)
 	fieldData.ArrayIndex++
@@ -985,7 +986,7 @@ func (cgv *codeGenerateVisitor) VisitMemberAccessor(mAccessor *MemberAccessor, d
 		func(keyRegister int) {
 			function := cgv.GetCurrentFunction()
 			keyIndex := function.AddConstString(mAccessor.Member.Str)
-			instruction := vm.ABxCode(vm.OpTypeLoadConst, keyRegister, keyIndex)
+			instruction := ABxCode(OpTypeLoadConst, keyRegister, keyIndex)
 			function.AddInstruction(instruction, mAccessor.Member.Line)
 		})
 }
@@ -1002,7 +1003,7 @@ func (cgv *codeGenerateVisitor) VisitMemberFuncCall(mFuncCall *MemberFuncCall, d
 		if err != nil {
 			panic(err)
 		}
-		instruction := vm.ABCode(vm.OpTypeMove, argRegister, callerRegister)
+		instruction := ABCode(OpTypeMove, argRegister, callerRegister)
 		function.AddInstruction(instruction, mFuncCall.Member.Line)
 
 		{
@@ -1014,7 +1015,7 @@ func (cgv *codeGenerateVisitor) VisitMemberFuncCall(mFuncCall *MemberFuncCall, d
 			if err != nil {
 				panic(err)
 			}
-			instruction := vm.ABxCode(vm.OpTypeLoadConst, keyRegister, index)
+			instruction := ABxCode(OpTypeLoadConst, keyRegister, index)
 			function.AddInstruction(instruction, mFuncCall.Member.Line)
 		}
 
@@ -1031,7 +1032,7 @@ func (cgv *codeGenerateVisitor) VisitFuncCallArgs(callArgs *FuncCallArgs, data u
 			if err != nil {
 				panic(err)
 			}
-			eListData := newCgExpListData(startRegister, datatype.ExpValueCountAny)
+			eListData := newCgExpListData(startRegister, ExpValueCountAny)
 			callArgs.Arg.Accept(cgv, &eListData)
 		}
 	} else {
@@ -1053,11 +1054,11 @@ func (cgv *codeGenerateVisitor) VisitExpressionList(expList *ExpressionList, dat
 	// When parent do not limit register count, reset register id generator as consume some registers,
 	// and check register count overflow or not
 	registerConsumer := func(id int) error {
-		if endRegister == datatype.ExpValueCountAny {
+		if endRegister == ExpValueCountAny {
 			cgv.ResetRegisterIdGenerator(id)
 		}
 		if cgv.IsRegisterCountOverflow() {
-			return vm.NewCodeGenerateError(cgv.GetCurrentFunction().GetModule().GetCStr(),
+			return NewCodeGenerateError(cgv.GetCurrentFunction().GetModule().GetCStr(),
 				expList.Line, "too many local variables or too complex expression")
 		}
 		return nil
@@ -1071,7 +1072,7 @@ func (cgv *codeGenerateVisitor) VisitExpressionList(expList *ExpressionList, dat
 	// Each expression consume one register
 	i := 0
 	var maxRegister int
-	if endRegister == datatype.ExpValueCountAny {
+	if endRegister == ExpValueCountAny {
 		maxRegister = int(^uint(0) >> 1) // Maximum Constant of Type int
 	} else {
 		maxRegister = endRegister
@@ -1117,7 +1118,7 @@ func (cgv *codeGenerateVisitor) EnterFunction() {
 
 	// New function is default on GCGen2, so barrier it
 	cgv.currentFunction.Function_ = cgv.state.NewFunction()
-	if datatype.CheckBarrier(cgv.currentFunction.Function_) {
+	if CheckBarrier(cgv.currentFunction.Function_) {
 		cgv.state.GetGC().SetBarrier(cgv.currentFunction.Function_)
 	}
 
@@ -1154,7 +1155,7 @@ func (cgv *codeGenerateVisitor) LeaveBlock() {
 	}
 
 	// add one instruction to close block
-	instruction := vm.ABCode(vm.OpTypeFillNil, block.RegisterStartId, cgv.currentFunction.RegisterId)
+	instruction := ABCode(OpTypeFillNil, block.RegisterStartId, cgv.currentFunction.RegisterId)
 	function.AddInstruction(instruction, 0)
 
 	cgv.currentFunction.CurrentBlock = block.Parent
@@ -1213,7 +1214,7 @@ func (cgv *codeGenerateVisitor) AddLoopJumpInfo(loopAst SyntaxTree, instructionI
 }
 
 // Insert name into current local scope, replace its info when existed
-func (cgv *codeGenerateVisitor) InsertName(name *datatype.String, registerId int) {
+func (cgv *codeGenerateVisitor) InsertName(name *String, registerId int) {
 	if cgv.currentFunction == nil || cgv.currentFunction.CurrentBlock == nil {
 		panic("assert")
 	}
@@ -1237,12 +1238,12 @@ func (cgv *codeGenerateVisitor) InsertName(name *datatype.String, registerId int
 }
 
 // Search name in current lexical function
-func (cgv *codeGenerateVisitor) SearchLocalName(name *datatype.String) *localNameInfo {
+func (cgv *codeGenerateVisitor) SearchLocalName(name *String) *localNameInfo {
 	return cgv.SearchFunctionLocalName(cgv.currentFunction, name)
 }
 
 // Search name in lexical function
-func (cgv *codeGenerateVisitor) SearchFunctionLocalName(function *generateFunction, name *datatype.String) *localNameInfo {
+func (cgv *codeGenerateVisitor) SearchFunctionLocalName(function *generateFunction, name *String) *localNameInfo {
 	block := function.CurrentBlock
 	for block != nil {
 		if info, ok := block.Names[name]; ok {
@@ -1258,7 +1259,7 @@ func (cgv *codeGenerateVisitor) SearchFunctionLocalName(function *generateFuncti
 // Prepare upvalue info when the name upvalue info not existed, and
 // return upvalue index, otherwise just return upvalue index
 // the name must reference a upvalue, otherwise will assert fail
-func (cgv *codeGenerateVisitor) PrepareUpvalue(name *datatype.String) (int, error) {
+func (cgv *codeGenerateVisitor) PrepareUpvalue(name *String) (int, error) {
 	// If the upvalue info existed, then return the index of the upvalue
 	function := cgv.GetCurrentFunction()
 	index := function.SearchUpvalue(name)
@@ -1281,7 +1282,7 @@ func (cgv *codeGenerateVisitor) PrepareUpvalue(name *datatype.String) (int, erro
 			// Find it, add it as upvalue to function, and continue backtrack
 			index := current.Function_.AddUpvalue(name, parentLocal, registerIndex)
 			if index >= maxClosureUpvalueCount {
-				return -1, vm.NewCodeGenerateError(current.Function_.GetModule().GetCStr(),
+				return -1, NewCodeGenerateError(current.Function_.GetModule().GetCStr(),
 					current.Function_.GetLine(), "too many upvalues in function")
 			}
 			registerIndex = index
@@ -1318,14 +1319,14 @@ func (cgv *codeGenerateVisitor) PrepareUpvalue(name *datatype.String) (int, erro
 	}
 	index = function.AddUpvalue(name, parentLocal, registerIndex)
 	if index >= maxClosureUpvalueCount {
-		return -1, vm.NewCodeGenerateError(function.GetModule().GetCStr(),
+		return -1, NewCodeGenerateError(function.GetModule().GetCStr(),
 			function.GetLine(), "too many upvalues in function")
 	}
 	return index, nil
 }
 
 // Get current function data
-func (cgv *codeGenerateVisitor) GetCurrentFunction() *datatype.Function {
+func (cgv *codeGenerateVisitor) GetCurrentFunction() *Function {
 	return cgv.currentFunction.Function_
 }
 
@@ -1334,7 +1335,7 @@ func (cgv *codeGenerateVisitor) GenerateRegisterId() (int, error) {
 	id := cgv.currentFunction.RegisterId
 	cgv.currentFunction.RegisterId++
 	if cgv.IsRegisterCountOverflow() {
-		return -1, vm.NewCodeGenerateError(cgv.GetCurrentFunction().GetModule().GetCStr(),
+		return -1, NewCodeGenerateError(cgv.GetCurrentFunction().GetModule().GetCStr(),
 			cgv.GetCurrentFunction().GetLine(), "too many local variables in function")
 	}
 	return id, nil
@@ -1377,9 +1378,9 @@ func (cgv *codeGenerateVisitor) fillRemainRegisterNil(registerId, endRegister, l
 	// Fill nil into all remain registers
 	// when end_register != EXP_VALUE_COUNT_ANY
 	function := cgv.GetCurrentFunction()
-	if endRegister != datatype.ExpValueCountAny {
+	if endRegister != ExpValueCountAny {
 		for registerId < endRegister {
-			instruction := vm.ACode(vm.OpTypeLoadNil, registerId)
+			instruction := ACode(OpTypeLoadNil, registerId)
 			function.AddInstruction(instruction, line)
 		}
 	}
@@ -1400,7 +1401,7 @@ func (cgv *codeGenerateVisitor) ifStatementGenerateCode(stmtType interface{}) {
 			eVarData := newCgExpVarData(registerId, registerId+1)
 			ifStmt.Exp.Accept(cgv, &eVarData)
 
-			instruction := vm.AsBxCode(vm.OpTypeJmpFalse, registerId, 0)
+			instruction := AsBxCode(OpTypeJmpFalse, registerId, 0)
 			jmpIndex := function.AddInstruction(instruction, ifStmt.Line)
 
 			{
@@ -1410,7 +1411,7 @@ func (cgv *codeGenerateVisitor) ifStatementGenerateCode(stmtType interface{}) {
 			}
 
 			// jmp to the of if-elseif-else statement after execute block
-			instruction = vm.AsBxCode(vm.OpTypeJmp, 0, 0)
+			instruction = AsBxCode(OpTypeJmp, 0, 0)
 			jmpEndIndex = function.AddInstruction(instruction, ifStmt.BlockEndLine)
 
 			// Refill OpType JmpFalse instruction
@@ -1438,7 +1439,7 @@ func (cgv *codeGenerateVisitor) ifStatementGenerateCode(stmtType interface{}) {
 			eVarData := newCgExpVarData(registerId, registerId+1)
 			ifStmt.Exp.Accept(cgv, &eVarData)
 
-			instruction := vm.AsBxCode(vm.OpTypeJmpFalse, registerId, 0)
+			instruction := AsBxCode(OpTypeJmpFalse, registerId, 0)
 			jmpIndex := function.AddInstruction(instruction, ifStmt.Line)
 
 			{
@@ -1448,7 +1449,7 @@ func (cgv *codeGenerateVisitor) ifStatementGenerateCode(stmtType interface{}) {
 			}
 
 			// jmp to the of if-elseif-else statement after execute block
-			instruction = vm.AsBxCode(vm.OpTypeJmp, 0, 0)
+			instruction = AsBxCode(OpTypeJmp, 0, 0)
 			jmpEndIndex = function.AddInstruction(instruction, ifStmt.BlockEndLine)
 
 			// Refill OpType JmpFalse instruction
@@ -1479,7 +1480,7 @@ func (cgv *codeGenerateVisitor) setTableFieldValue(tableFieldType interface{}, t
 		field.Value.Accept(cgv, &eVarData)
 
 		// Set table field
-		instruction := vm.ABCCode(vm.OpTypeSetTable, tableRegister, keyRegister, valueRegister)
+		instruction := ABCCode(OpTypeSetTable, tableRegister, keyRegister, valueRegister)
 		cgv.GetCurrentFunction().AddInstruction(instruction, line)
 	case *TableNameField:
 		// Load value
@@ -1491,7 +1492,7 @@ func (cgv *codeGenerateVisitor) setTableFieldValue(tableFieldType interface{}, t
 		field.Value.Accept(cgv, &eVarData)
 
 		// Set table field
-		instruction := vm.ABCCode(vm.OpTypeSetTable, tableRegister, keyRegister, valueRegister)
+		instruction := ABCCode(OpTypeSetTable, tableRegister, keyRegister, valueRegister)
 		cgv.GetCurrentFunction().AddInstruction(instruction, line)
 	case *TableArrayField:
 		// Load value
@@ -1503,7 +1504,7 @@ func (cgv *codeGenerateVisitor) setTableFieldValue(tableFieldType interface{}, t
 		field.Value.Accept(cgv, &eVarData)
 
 		// Set table field
-		instruction := vm.ABCCode(vm.OpTypeSetTable, tableRegister, keyRegister, valueRegister)
+		instruction := ABCCode(OpTypeSetTable, tableRegister, keyRegister, valueRegister)
 		cgv.GetCurrentFunction().AddInstruction(instruction, line)
 	}
 }
@@ -1523,18 +1524,18 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 		var opType int
 		if accessor.Semantic == SemanticOpRead {
 			// No more register, do nothing
-			if endRegister != datatype.ExpValueCountAny && registerId >= endRegister {
+			if endRegister != ExpValueCountAny && registerId >= endRegister {
 				return
 			}
 
-			if endRegister != datatype.ExpValueCountAny && registerId+1 < endRegister {
+			if endRegister != ExpValueCountAny && registerId+1 < endRegister {
 				keyRegister = registerId + 1
 			} else {
 				keyRegister = cgv.GetNextRegisterId()
 			}
 			tableRegister = registerId
 			valueRegister = registerId
-			opType = vm.OpTypeGetTable
+			opType = OpTypeGetTable
 		} else {
 			if accessor.Semantic != SemanticOpWrite {
 				panic("assert")
@@ -1546,7 +1547,7 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 			tableRegister = cgv.GetNextRegisterId()
 			keyRegister = cgv.GetNextRegisterId()
 			valueRegister = registerId
-			opType = vm.OpTypeSetTable
+			opType = OpTypeSetTable
 		}
 
 		// Load table
@@ -1557,7 +1558,7 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 		loadKey(keyRegister)
 
 		// Set/Get table value by key
-		instruction := vm.ABCCode(opType, tableRegister, keyRegister, valueRegister)
+		instruction := ABCCode(opType, tableRegister, keyRegister, valueRegister)
 		function.AddInstruction(instruction, line)
 
 		if accessor.Semantic == SemanticOpRead {
@@ -1575,18 +1576,18 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 		var opType int
 		if accessor.Semantic == SemanticOpRead {
 			// No more register, do nothing
-			if endRegister != datatype.ExpValueCountAny && registerId >= endRegister {
+			if endRegister != ExpValueCountAny && registerId >= endRegister {
 				return
 			}
 
-			if endRegister != datatype.ExpValueCountAny && registerId+1 < endRegister {
+			if endRegister != ExpValueCountAny && registerId+1 < endRegister {
 				keyRegister = registerId + 1
 			} else {
 				keyRegister = cgv.GetNextRegisterId()
 			}
 			tableRegister = registerId
 			valueRegister = registerId
-			opType = vm.OpTypeGetTable
+			opType = OpTypeGetTable
 		} else {
 			if accessor.Semantic != SemanticOpWrite {
 				panic("assert")
@@ -1598,7 +1599,7 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 			tableRegister = cgv.GetNextRegisterId()
 			keyRegister = cgv.GetNextRegisterId()
 			valueRegister = registerId
-			opType = vm.OpTypeSetTable
+			opType = OpTypeSetTable
 		}
 
 		// Load table
@@ -1609,7 +1610,7 @@ func (cgv *codeGenerateVisitor) accessTableField(tableAccessorType interface{}, 
 		loadKey(keyRegister)
 
 		// Set/Get table value by key
-		instruction := vm.ABCCode(opType, tableRegister, keyRegister, valueRegister)
+		instruction := ABCCode(opType, tableRegister, keyRegister, valueRegister)
 		function.AddInstruction(instruction, line)
 
 		if accessor.Semantic == SemanticOpRead {
@@ -1637,7 +1638,7 @@ func (cgv *codeGenerateVisitor) functionCall(funcCallType interface{}, data unsa
 		var err error
 		// Generate code to get caller
 		callerRegister := 0
-		if endRegister == datatype.ExpValueCountAny {
+		if endRegister == ExpValueCountAny {
 			callerArgAdjuster = startRegister
 		} else {
 			callerArgAdjuster, err = cgv.GenerateRegisterId()
@@ -1661,32 +1662,32 @@ func (cgv *codeGenerateVisitor) functionCall(funcCallType interface{}, data unsa
 
 		// Calculate total args
 		var totalArgs int
-		if argData.ArgValueCount == datatype.ExpValueCountAny {
-			totalArgs = datatype.ExpValueCountAny
+		if argData.ArgValueCount == ExpValueCountAny {
+			totalArgs = ExpValueCountAny
 		} else {
 			totalArgs = argData.ArgValueCount + adjustArgs
 		}
 
 		// Calculate expect results count of function call
 		var results int
-		if endRegister == datatype.ExpValueCountAny {
-			results = datatype.ExpValueCountAny
+		if endRegister == ExpValueCountAny {
+			results = ExpValueCountAny
 		} else {
 			results = endRegister - startRegister
 		}
 
 		// Generate call instruction
 		function := cgv.GetCurrentFunction()
-		instruction := vm.ABCCode(vm.OpTypeCall, callerRegister, totalArgs+1, results+1)
+		instruction := ABCCode(OpTypeCall, callerRegister, totalArgs+1, results+1)
 		function.AddInstruction(instruction, funcCall.Line)
 
 		// Copy results of function call to dst registers
 		// if end_register == EXP_VALUE_COUNT_ANY, then do not
 		// copy results to dst registers, just keep it
-		if endRegister != datatype.ExpValueCountAny {
+		if endRegister != ExpValueCountAny {
 			src := callerRegister
 			for dst := startRegister; dst < endRegister; dst++ {
-				i := vm.ABCode(vm.OpTypeMove, dst, src)
+				i := ABCode(OpTypeMove, dst, src)
 				function.AddInstruction(i, funcCall.Line)
 				src++
 			}
@@ -1707,7 +1708,7 @@ func (cgv *codeGenerateVisitor) functionCall(funcCallType interface{}, data unsa
 		var err error
 		// Generate code to get caller
 		callerRegister := 0
-		if endRegister == datatype.ExpValueCountAny {
+		if endRegister == ExpValueCountAny {
 			callerArgAdjuster = startRegister
 		} else {
 			callerArgAdjuster, err = cgv.GenerateRegisterId()
@@ -1731,32 +1732,32 @@ func (cgv *codeGenerateVisitor) functionCall(funcCallType interface{}, data unsa
 
 		// Calculate total args
 		var totalArgs int
-		if argData.ArgValueCount == datatype.ExpValueCountAny {
-			totalArgs = datatype.ExpValueCountAny
+		if argData.ArgValueCount == ExpValueCountAny {
+			totalArgs = ExpValueCountAny
 		} else {
 			totalArgs = argData.ArgValueCount + adjustArgs
 		}
 
 		// Calculate expect results count of function call
 		var results int
-		if endRegister == datatype.ExpValueCountAny {
-			results = datatype.ExpValueCountAny
+		if endRegister == ExpValueCountAny {
+			results = ExpValueCountAny
 		} else {
 			results = endRegister - startRegister
 		}
 
 		// Generate call instruction
 		function := cgv.GetCurrentFunction()
-		instruction := vm.ABCCode(vm.OpTypeCall, callerRegister, totalArgs+1, results+1)
+		instruction := ABCCode(OpTypeCall, callerRegister, totalArgs+1, results+1)
 		function.AddInstruction(instruction, funcCall.Line)
 
 		// Copy results of function call to dst registers
 		// if end_register == EXP_VALUE_COUNT_ANY, then do not
 		// copy results to dst registers, just keep it
-		if endRegister != datatype.ExpValueCountAny {
+		if endRegister != ExpValueCountAny {
 			src := callerRegister
 			for dst := startRegister; dst < endRegister; dst++ {
-				i := vm.ABCode(vm.OpTypeMove, dst, src)
+				i := ABCode(OpTypeMove, dst, src)
 				function.AddInstruction(i, funcCall.Line)
 				src++
 			}
@@ -1838,7 +1839,7 @@ func newCgFunctionNameData(funcRegister int) *cgFunctionNameData {
 	return &cgFunctionNameData{funcRegister}
 }
 
-func CodeGenerate(root SyntaxTree, state *vm.State) {
+func CodeGenerate(root SyntaxTree, state *State) {
 	if root == nil || state == nil {
 		panic("assert")
 	}

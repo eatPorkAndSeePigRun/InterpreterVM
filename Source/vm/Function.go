@@ -1,23 +1,21 @@
-package datatype
-
-import "InterpreterVM/Source/vm"
+package vm
 
 // Function prototype class, all runtime functions(closures) reference this
 // class object. This class contains some static information generated after
 // parse.
 type Function struct {
 	gcObjectField
-	opCodes     []vm.Instruction // function instruction opCodes
-	opCodeLines []int            // opCodes' line number
-	constValues []Value          // const values in function
-	localVars   []localVarInfo   // debug info
-	childFuncs  []*Function      // child functions
-	upvalues    []UpvalueInfo    // upvalues
-	module      *String          // function define module name
-	line        int              // function define line at module
-	args        int              // count of args
-	isVararg    bool             // has '...' param or not
-	superior    *Function        // superior function pointer
+	opCodes     []Instruction  // function instruction opCodes
+	opCodeLines []int          // opCodes' line number
+	constValues []Value        // const values in function
+	localVars   []localVarInfo // debug info
+	childFuncs  []*Function    // child functions
+	upvalues    []UpvalueInfo  // upvalues
+	module      *String        // function define module name
+	line        int            // function define line at module
+	args        int            // count of args
+	isVararg    bool           // has '...' param or not
+	superior    *Function      // superior function pointer
 }
 
 func NewFunction() *Function {
@@ -27,9 +25,9 @@ func NewFunction() *Function {
 // For debug
 type localVarInfo struct {
 	Name       *String // Local variable name
-	RegisterId int64   // Register id in function
-	BeginPc    int64   // Begin instruction index of variable
-	EndPc      int64   // The past-the-end instruction index
+	RegisterId int     // Register id in function
+	BeginPc    int     // Begin instruction index of variable
+	EndPc      int     // The past-the-end instruction index
 }
 
 type UpvalueInfo struct {
@@ -75,7 +73,7 @@ func (f *Function) Accept(v GCObjectVisitor) {
 }
 
 // Get function instructions and size
-func (f *Function) GetOpCodes() *vm.Instruction {
+func (f *Function) GetOpCodes() *Instruction {
 	if len(f.opCodes) == 0 {
 		return nil
 	} else {
@@ -88,13 +86,13 @@ func (f *Function) OpCodeSize() int {
 }
 
 // Get instruction pointer, then it can be changed
-func (f *Function) GetMutableInstruction(index int) *vm.Instruction {
+func (f *Function) GetMutableInstruction(index int) *Instruction {
 	return &f.opCodes[index]
 }
 
 // Add instruction, 'line' is line number of the instruction 'i',
 // return index of the new instruction
-func (f *Function) AddInstruction(i vm.Instruction, line int) int {
+func (f *Function) AddInstruction(i Instruction, line int) int {
 	f.opCodes = append(f.opCodes, i)
 	f.opCodeLines = append(f.opCodeLines, line)
 	return len(f.opCodes) - 1

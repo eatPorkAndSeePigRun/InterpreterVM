@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"InterpreterVM/Source/datatype"
 	"container/list"
 	"math"
 	"unsafe"
@@ -32,45 +31,45 @@ func NewCFunctionError() CFunctionError {
 }
 
 type State struct {
-	moduleManager *ModuleManager       // Manage all modules
-	stringPool    *datatype.StringPool // All strings in the pool
-	gc            *datatype.GC         // The GC
+	moduleManager *ModuleManager // Manage all modules
+	stringPool    *StringPool    // All strings in the pool
+	gc            *GC            // The GC
 
 	cFuncError CFunctionError // Error of call c function
 
-	stack  Stack          // Stack data
-	calls  list.List      // Stack frames, and its element.value is CallInfo
-	global datatype.Value // Global table
+	stack  Stack     // Stack data
+	calls  list.List // Stack frames, and its element.value is CallInfo
+	global Value     // Global table
 }
 
 func NewState() *State {
 	var s State
 
-	s.stringPool = datatype.NewStringPool()
+	s.stringPool = NewStringPool()
 
 	// Init GC
-	deleter := func(obj datatype.GCObject, objType int) {
-		if objType == datatype.GCObjectTypeString {
-			s.stringPool.DeleteString(obj.(*datatype.String))
+	deleter := func(obj GCObject, objType int) {
+		if objType == GCObjectTypeString {
+			s.stringPool.DeleteString(obj.(*String))
 		}
 		obj = nil
 	}
-	s.gc = datatype.NewGC(deleter, false)
+	s.gc = NewGC(deleter, false)
 	root := s.fullGCRoot
 	s.gc.SetRootTraveller(root, root)
 
 	// New global table
 	s.global.Table = s.NewTable()
-	s.global.Type = datatype.ValueTTable
+	s.global.Type = ValueTTable
 
 	// New table for store metaTables
-	k := datatype.NewValueString(s.GetString(metaTables))
-	v := datatype.NewValueTable(s.NewTable())
+	k := NewValueString(s.GetString(metaTables))
+	v := NewValueTable(s.NewTable())
 	s.global.Table.SetValue(k, v)
 
 	// New table for store modules
-	k = datatype.NewValueString(s.GetString(modulesTable))
-	v = datatype.NewValueTable(s.NewTable())
+	k = NewValueString(s.GetString(modulesTable))
+	v = NewValueTable(s.NewTable())
 	s.global.Table.SetValue(k, v)
 
 	// Init module manager
@@ -80,7 +79,7 @@ func NewState() *State {
 }
 
 // Full GC root
-func (s *State) fullGCRoot(v datatype.GCObjectVisitor) {
+func (s *State) fullGCRoot(v GCObjectVisitor) {
 	// Visit global table
 	s.global.Accept(v)
 
@@ -100,7 +99,7 @@ func (s *State) fullGCRoot(v datatype.GCObjectVisitor) {
 }
 
 // For CallFunction
-func (s *State) callClosure(f *datatype.Value, expectResult int) {
+func (s *State) callClosure(f *Value, expectResult int) {
 	var callee CallInfo
 	calleeProto := f.Closure.GetPrototype()
 	callee.Func = f
@@ -116,7 +115,7 @@ func (s *State) callClosure(f *datatype.Value, expectResult int) {
 		top := s.stack.Top
 		callee.Register = top
 		count := int((uintptr(unsafe.Pointer(top)) - uintptr(unsafe.Pointer(arg))) /
-			unsafe.Sizeof(datatype.Value{}))
+			unsafe.Sizeof(Value{}))
 		for i := 0; i < count && i < int(fixedArgs); i++ {
 			*top = *arg
 			top = vPointerAdd(top, 1)
@@ -137,7 +136,7 @@ func (s *State) callClosure(f *datatype.Value, expectResult int) {
 	s.calls.PushBack(&callee)
 }
 
-func (s *State) callCFunction(f *datatype.Value, expectResult int) {
+func (s *State) callCFunction(f *Value, expectResult int) {
 	// Push the c function CallInfo
 	callee := CallInfo{Register: vPointerAdd(f, 1), Func: f, ExpectResult: expectResult}
 	s.calls.PushBack(&callee)
@@ -152,14 +151,14 @@ func (s *State) callCFunction(f *datatype.Value, expectResult int) {
 		panic(err)
 	}
 
-	var src *datatype.Value
+	var src *Value
 	if resCount > 0 {
 		src = vPointerAdd(s.stack.Top, resCount)
 	}
 
 	// Copy c function result to caller stack
 	dst := f
-	if expectResult == datatype.ExpValueCountAny {
+	if expectResult == ExpValueCountAny {
 		for i := 0; i < int(resCount); i++ {
 			*dst = *src
 			dst = vPointerAdd(dst, 1)
@@ -205,10 +204,10 @@ func (s *State) checkCFunctionError() error {
 }
 
 // Get the table which stores all metaTables
-func (s *State) getMetaTables() *datatype.Table {
-	k := datatype.NewValueString(s.GetString(metaTables))
+func (s *State) getMetaTables() *Table {
+	k := NewValueString(s.GetString(metaTables))
 	v := s.global.Table.GetValue(k)
-	if v.Type != datatype.ValueTTable {
+	if v.Type != ValueTTable {
 		panic("assert")
 	}
 	return v.Table
@@ -261,17 +260,17 @@ func (s *State) DoString(str, name string) {
 // If f is a closure, then create a stack frame and return true,
 // call VM::Execute() to execute the closure instructions.
 // Return false when f is a c function.
-func (s *State) CallFunction(f *datatype.Value, argCount int, expectResult int) (bool, error) {
-	if f.Type != datatype.ValueTClosure && f.Type != datatype.ValueTCFunction {
+func (s *State) CallFunction(f *Value, argCount int, expectResult int) (bool, error) {
+	if f.Type != ValueTClosure && f.Type != ValueTCFunction {
 		panic("assert")
 	}
 
 	// Set stack top when argCount is fixed
-	if argCount != datatype.ExpValueCountAny {
+	if argCount != ExpValueCountAny {
 		s.stack.Top = vPointerAdd(f, 1+argCount)
 	}
 
-	if f.Type == datatype.ValueTClosure {
+	if f.Type == ValueTClosure {
 		// We need enter next ExecuteFrame
 		s.callClosure(f, expectResult)
 		return true, nil
@@ -282,10 +281,10 @@ func (s *State) CallFunction(f *datatype.Value, argCount int, expectResult int) 
 }
 
 // New GCObjects
-func (s *State) GetString(str string) *datatype.String {
+func (s *State) GetString(str string) *String {
 	str2 := s.stringPool.GetString(str)
 	if str2 == nil {
-		str2 = s.gc.NewString(datatype.GCGen0)
+		str2 = s.gc.NewString(GCGen0)
 		str2.SetValue(str)
 		s.stringPool.AddString(str2)
 	}
@@ -293,33 +292,33 @@ func (s *State) GetString(str string) *datatype.String {
 }
 
 // New GCObjects
-func (s *State) NewTable() *datatype.Table {
-	return s.gc.NewTAble(datatype.GCGen0)
+func (s *State) NewTable() *Table {
+	return s.gc.NewTAble(GCGen0)
 }
 
 // New GCObjects
-func (s *State) NewFunction() *datatype.Function {
-	return s.gc.NewFunction(datatype.GCGen2)
+func (s *State) NewFunction() *Function {
+	return s.gc.NewFunction(GCGen2)
 }
 
 // New GCObjects
-func (s *State) NewClosure() *datatype.Closure {
-	return s.gc.NewClosure(datatype.GCGen0)
+func (s *State) NewClosure() *Closure {
+	return s.gc.NewClosure(GCGen0)
 }
 
 // New GCObjects
-func (s *State) NewUpvalue() *datatype.Upvalue {
-	return s.gc.NewUpvalue(datatype.GCGen0)
+func (s *State) NewUpvalue() *Upvalue {
+	return s.gc.NewUpvalue(GCGen0)
 }
 
 // New GCObjects
-func (s *State) NewString() *datatype.String {
-	return s.gc.NewString(datatype.GCGen0)
+func (s *State) NewString() *String {
+	return s.gc.NewString(GCGen0)
 }
 
 // New GCObjects
-func (s *State) NewUserData() *datatype.UserData {
-	return s.gc.NewUserData(datatype.GCGen0)
+func (s *State) NewUserData() *UserData {
+	return s.gc.NewUserData(GCGen0)
 }
 
 // Get current CallInfo
@@ -331,24 +330,24 @@ func (s *State) GetCurrentCall() *CallInfo {
 }
 
 // Get the global table value
-func (s *State) GetGlobal() *datatype.Value {
+func (s *State) GetGlobal() *Value {
 	return &s.global
 }
 
 // Return metaTable, create when metaTable not existed
-func (s *State) GetMetaTable(metaTableName string) *datatype.Table {
-	k := datatype.NewValueString(s.GetString(metaTableName))
+func (s *State) GetMetaTable(metaTableName string) *Table {
+	k := NewValueString(s.GetString(metaTableName))
 	metaTables := s.getMetaTables()
 	metaTable := metaTables.GetValue(k)
 
 	// Create table when metaTable not existed
-	if metaTable.Type == datatype.ValueTNil {
-		metaTable.Type = datatype.ValueTTable
+	if metaTable.Type == ValueTNil {
+		metaTable.Type = ValueTTable
 		metaTable.Table = s.NewTable()
 		metaTables.SetValue(k, metaTable)
 	}
 
-	if metaTable.Type != datatype.ValueTTable {
+	if metaTable.Type != ValueTTable {
 		panic("assert")
 	}
 	return metaTable.Table
@@ -356,8 +355,8 @@ func (s *State) GetMetaTable(metaTableName string) *datatype.Table {
 
 // Erase metaTable
 func (s *State) EraseMetaTable(metaTableName string) {
-	k := datatype.NewValueString(s.GetString(metaTableName))
-	var null datatype.Value
+	k := NewValueString(s.GetString(metaTableName))
+	var null Value
 	metaTables := s.getMetaTables()
 	metaTables.SetValue(k, null)
 }
@@ -373,7 +372,7 @@ func (s *State) GetCFunctionErrorData() *CFunctionError {
 }
 
 // Get the GC
-func (s *State) GetGC() *datatype.GC {
+func (s *State) GetGC() *GC {
 	return s.gc
 }
 

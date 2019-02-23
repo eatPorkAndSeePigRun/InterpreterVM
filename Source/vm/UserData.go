@@ -1,4 +1,4 @@
-package datatype
+package vm
 
 type Destroyer func(*int32)
 

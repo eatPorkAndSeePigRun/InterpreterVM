@@ -1,7 +1,6 @@
-package compiler
+package vm
 
 import (
-	"InterpreterVM/Source/datatype"
 	"strconv"
 )
 
@@ -47,13 +46,13 @@ var tokenStr = []string{
 }
 
 type TokenDetail struct {
-	Number float64          // number for TokenNumber
-	Str    *datatype.String // string for TokenId, TokenKeyWord and TokenString
+	Number float64 // number for TokenNumber
+	Str    *String // string for TokenId, TokenKeyWord and TokenString
 
-	Module *datatype.String // module name of this token belongs to
-	Line   int              // token line number in module
-	Column int              // token column number at 'line'
-	Token  int              // token value
+	Module *String // module name of this token belongs to
+	Line   int     // token line number in module
+	Column int     // token column number at 'line'
+	Token  int     // token value
 }
 
 func NewTokenDetail() *TokenDetail {
