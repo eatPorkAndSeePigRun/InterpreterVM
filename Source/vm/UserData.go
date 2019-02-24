@@ -1,13 +1,15 @@
 package vm
 
-type Destroyer func(*int32)
+import "unsafe"
+
+type Destroyer func(unsafe.Pointer)
 
 type UserData struct {
 	gcObjectField
-	userData  *int32    // Point to user data
-	metaTable *Table    // MetaTable of user data
-	destroyer Destroyer // User data destroyer, call it when user data destroy
-	destroyed bool      // Whether user data destroyed
+	userData  unsafe.Pointer // Point to user data
+	metaTable *Table         // MetaTable of user data
+	destroyer Destroyer      // User data destroyer, call it when user data destroy
+	destroyed bool           // Whether user data destroyed
 }
 
 func NewUserData() *UserData {
@@ -20,7 +22,7 @@ func (u *UserData) Accept(visitor GCObjectVisitor) {
 	}
 }
 
-func (u *UserData) Set(userData *int32, metaTable *Table) {
+func (u *UserData) Set(userData unsafe.Pointer, metaTable *Table) {
 	u.userData = userData
 	u.metaTable = metaTable
 }
@@ -33,7 +35,7 @@ func (u *UserData) MarkDestroyed() {
 	u.destroyed = true
 }
 
-func (u *UserData) GetData() *int32 {
+func (u *UserData) GetData() unsafe.Pointer {
 	return u.userData
 }
 

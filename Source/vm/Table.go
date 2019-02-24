@@ -86,7 +86,7 @@ func (t *Table) Accept(v GCObjectVisitor) {
 // Set array value by index, return true if success.
 // 'index' start from 1, if 'index' == ArraySize() + 1,
 // then append value to array.
-func (t *Table) SetArrayValue(index int64, value Value) bool {
+func (t *Table) SetArrayValue(index int, value Value) bool {
 	if index < 1 {
 		return false
 	}
@@ -109,7 +109,7 @@ func (t *Table) SetArrayValue(index int64, value Value) bool {
 // otherwise shifting up all values which start from 'index',
 // and insert value to 'index' of array.
 // Return true when insert success.
-func (t *Table) InsertArrayValue(index int64, value Value) bool {
+func (t *Table) InsertArrayValue(index int, value Value) bool {
 	if index < 1 {
 		return false
 	}
@@ -136,7 +136,7 @@ func (t *Table) InsertArrayValue(index int64, value Value) bool {
 // Erase the value by 'index' in array if 'index' is legal,
 // shifting down all values which start from 'index' + 1.
 // Return true when erase success.
-func (t *Table) EraseArrayValue(index int64) bool {
+func (t *Table) EraseArrayValue(index int) bool {
 	if index < 1 || index > t.ArraySize() {
 		return false
 	}
@@ -151,7 +151,7 @@ func (t *Table) EraseArrayValue(index int64) bool {
 func (t *Table) SetValue(key, value Value) {
 	// Try array part
 	if key.Type == ValueTNumber && isInt(key.Num) {
-		if t.SetArrayValue(int64(key.Num), value) {
+		if t.SetArrayValue(int(key.Num), value) {
 			return
 		}
 	}
@@ -189,7 +189,7 @@ func (t *Table) SetValue(key, value Value) {
 func (t *Table) GetValue(key Value) Value {
 	// Get from array first
 	if key.Type == ValueTNumber && isInt(key.Num) {
-		index := int64(key.Num)
+		index := int(key.Num)
 		if index >= 1 && index <= t.ArraySize() {
 			return (*t.array)[index-1]
 		}
@@ -234,7 +234,7 @@ func (t *Table) FirstKeyValue(key, value *Value) bool {
 func (t *Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 	// array part
 	if key.Type == ValueTNumber && isInt(key.Num) {
-		index := int64(key.Num) + 1
+		index := int(key.Num) + 1
 		if index >= 1 && index <= t.ArraySize() {
 			nextValue.Num = float64(index)
 			nextValue.Type = ValueTNumber
@@ -269,9 +269,9 @@ func (t *Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 }
 
 // Return the number of array part elements.
-func (t *Table) ArraySize() int64 {
+func (t *Table) ArraySize() int {
 	if t.array != nil {
-		return int64(len(*t.array))
+		return len(*t.array)
 	} else {
 		return 0
 	}
