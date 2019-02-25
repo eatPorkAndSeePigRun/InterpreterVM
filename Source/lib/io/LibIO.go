@@ -28,7 +28,7 @@ func readBytes(api *StackAPI, file *os.File, bytes int) {
 	if bytes <= 0 {
 		api.PushString("")
 	} else {
-		var buf [bytes]byte
+		var buf [1024]byte
 		n, err := file.Read(buf[:])
 		if err != nil {
 			fmt.Println(err)

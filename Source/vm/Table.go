@@ -18,7 +18,7 @@ func NewTable() *Table {
 }
 
 type array []Value
-type hash map[Value]Value
+type hash map[string]Value // as map[Value]Value
 
 // Combine AppendToArray and MergeFromHashToArray
 func (t *Table) appendAndMergeFromHashToArray(value Value) {
@@ -54,13 +54,13 @@ func (t *Table) moveHashToArray(key Value) bool {
 		return false
 	}
 
-	value, ok := (*t.hash)[key]
+	value, ok := (*t.hash)[EnValue(key)]
 	if !ok {
 		return false
 	}
 
 	t.appendToArray(value)
-	delete(*t.hash, value)
+	delete(*t.hash, EnValue(value))
 	return true
 }
 
@@ -76,7 +76,8 @@ func (t *Table) Accept(v GCObjectVisitor) {
 		// Visit all keys and values in hash table.
 		if t.hash != nil {
 			for key, value := range *t.hash {
-				key.Accept(v)
+				t := DeValue(key)
+				t.Accept(v)
 				value.Accept(v)
 			}
 		}
@@ -165,18 +166,18 @@ func (t *Table) SetValue(key, value Value) {
 		t.hash = new(hash)
 	}
 
-	v, ok := (*t.hash)[key]
+	v, ok := (*t.hash)[EnValue(key)]
 	if ok {
 		// If value is nil, then just erase the element
 		if value.IsNil() {
-			delete(*t.hash, v)
+			delete(*t.hash, EnValue(v))
 		} else {
-			(*t.hash)[key] = value
+			(*t.hash)[EnValue(key)] = value
 		}
 	} else {
 		// If key is not existed and value is not nil, then insert it
 		if !value.IsNil() {
-			(*t.hash)[key] = value
+			(*t.hash)[EnValue(key)] = value
 		}
 	}
 
@@ -197,7 +198,7 @@ func (t *Table) GetValue(key Value) Value {
 
 	// Get from hash table
 	if t.hash != nil {
-		v, ok := (*t.hash)[key]
+		v, ok := (*t.hash)[EnValue(key)]
 		if ok {
 			return v
 		}
@@ -220,7 +221,7 @@ func (t *Table) FirstKeyValue(key, value *Value) bool {
 	// hash part
 	if t.hash != nil && len(*t.hash) == 0 {
 		for k, v := range *t.hash {
-			*key = k
+			*key = DeValue(k)
 			*value = v
 			return true
 		}
@@ -244,7 +245,7 @@ func (t *Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 	}
 
 	// hash part
-	v, ok := (*t.hash)[*key]
+	v, ok := (*t.hash)[EnValue(*key)]
 	if ok {
 		isV := false
 		for nk, nv := range *t.hash {
@@ -252,14 +253,14 @@ func (t *Table) NextKeyValue(key, nextKey, nextValue *Value) bool {
 				isV = true
 			}
 			if isV == true {
-				*nextKey = nk
+				*nextKey = DeValue(nk)
 				*nextValue = nv
 				return true
 			}
 		}
 	} else if !ok && len(*t.hash) != 0 {
 		for k1, v1 := range *t.hash {
-			*nextKey = k1
+			*nextKey = DeValue(k1)
 			*nextValue = v1
 			return true
 		}

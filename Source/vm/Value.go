@@ -1,5 +1,7 @@
 package vm
 
+import "fmt"
+
 const ExpValueCountAny = -1
 
 type CFunctionType func(state *State) int
@@ -16,6 +18,21 @@ const (
 	ValueTUserData
 	ValueTCFunction
 )
+
+func EnValue(v Value) string {
+	return fmt.Sprintf("%v %p %p %p %p %p %p %b %t %d", v.Obj, v.Str, v.Closure,
+		v.Upvalue, v.Table, v.UserDate, v.CFunc, v.Num, v.BValue, v.Type)
+}
+
+func DeValue(s string) Value {
+	var v Value
+	_, err := fmt.Sscanf(s, "%v %p %p %p %p %p %p %b %t %d", &v.Obj, &v.Str, &v.Closure,
+		&v.Upvalue, &v.Table, &v.UserDate, &v.CFunc, &v.Num, &v.BValue, &v.Type)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
 
 // Value type of vm
 type Value struct {
