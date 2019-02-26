@@ -21,18 +21,14 @@ func NewLexerWrapper(str string) *lexerWrapper {
 	return &lw
 }
 
-func (lw lexerWrapper) GetToken() int {
+func (lw *lexerWrapper) GetToken() (int, error) {
 	var token TokenDetail
-	t, err := lw.lexer.GetToken(&token)
-	if err != nil {
-		panic(err)
-	}
-	return t
+	return lw.lexer.GetToken(&token)
 }
 
 func TestLex1(t *testing.T) {
 	lexer := NewLexerWrapper("\r\n\t\v\f")
-	if lexer.GetToken() == TokenEOF {
+	if token, _ := lexer.GetToken(); token != TokenEOF {
 		t.Error("lex1 error")
 	}
 }

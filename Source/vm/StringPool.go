@@ -6,7 +6,7 @@ type StringPool struct {
 }
 
 func NewStringPool() *StringPool {
-	return &StringPool{}
+	return &StringPool{strings: make(map[*String]bool)}
 }
 
 // Get string from pool when string is existed,

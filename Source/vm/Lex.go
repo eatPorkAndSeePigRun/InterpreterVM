@@ -5,7 +5,7 @@ import (
 	"unicode"
 )
 
-const EOF = 0
+const EOF = 0xff
 
 var keyword = []string{
 	"and", "break", "do", "else", "elseif", "end",

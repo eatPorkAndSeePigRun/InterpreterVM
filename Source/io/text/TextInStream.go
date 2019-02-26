@@ -4,6 +4,8 @@ import (
 	"os"
 )
 
+const EOF = 0xff
+
 type InStream struct {
 	stream *os.File
 }
@@ -16,11 +18,11 @@ func NewInStream(path string) *InStream {
 	return &InStream{f}
 }
 
-func (is InStream) IsOpen() bool {
+func (is *InStream) IsOpen() bool {
 	return is.stream != nil
 }
 
-func (is InStream) GetChar() byte {
+func (is *InStream) GetChar() byte {
 	buf := make([]byte, 1)
 	_, err := is.stream.Read(buf)
 	panic(err)
@@ -36,17 +38,17 @@ func NewInStringStream(str string) InStringStream {
 	return InStringStream{str, 0}
 }
 
-func (iss InStringStream) SetInputString(input string) {
+func (iss *InStringStream) SetInputString(input string) {
 	iss.str = input
 	iss.pos = 0
 }
 
-func (iss InStringStream) GetChar() byte {
+func (iss *InStringStream) GetChar() byte {
 	if iss.pos < len(iss.str) {
 		res := iss.str[iss.pos]
 		iss.pos++
 		return res
 	} else {
-		return 0
+		return EOF
 	}
 }
