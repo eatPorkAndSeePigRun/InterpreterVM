@@ -32,3 +32,13 @@ func TestLex1(t *testing.T) {
 		t.Error("lex1 error")
 	}
 }
+
+func TestLex2(t *testing.T) {
+	lexer := NewLexerWrapper("-- this is comment\n" +
+		"--[[this is long\n comment]]" +
+		"--[[this is long\n comment too--]]" +
+		"--[[incomplete comment]")
+	if _, err := lexer.GetToken(); err != nil {
+		t.Error("lex2 should be a error")
+	}
+}

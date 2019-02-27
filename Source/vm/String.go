@@ -28,15 +28,15 @@ func (s *String) Accept(v GCObjectVisitor) {
 	v.VisitString(s)
 }
 
-func (s String) GetHash() int64 {
+func (s *String) GetHash() int64 {
 	return s.hash_
 }
 
-func (s String) GetLength() int {
+func (s *String) GetLength() int {
 	return s.length
 }
 
-func (s String) GetCStr() string {
+func (s *String) GetCStr() string {
 	if s.inHeap != 0 {
 		return s.str
 	} else {
@@ -45,7 +45,7 @@ func (s String) GetCStr() string {
 }
 
 // Convert to string
-func (s String) GetStdString() string {
+func (s *String) GetStdString() string {
 	if s.inHeap != 0 {
 		return s.str[0:s.length]
 	} else {
@@ -70,7 +70,7 @@ func (s *String) SetValue(str string) {
 	}
 }
 
-func (s String) IsEqual(s1 String) bool {
+func (s *String) IsEqual(s1 String) bool {
 	if s.inHeap != 0 && s.str != s1.str {
 		return false
 	} else if s.inHeap != 0 && s.strBuffer != s1.strBuffer {
@@ -79,7 +79,7 @@ func (s String) IsEqual(s1 String) bool {
 	return s.hash_ == s1.hash_ && s.length == s1.length
 }
 
-func (s String) IsLess(s1 String) bool {
+func (s *String) IsLess(s1 String) bool {
 	var s_, s1_ string
 	if s.inHeap != 0 {
 		s_ = s.str
