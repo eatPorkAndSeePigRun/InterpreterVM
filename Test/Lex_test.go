@@ -225,3 +225,15 @@ func TestLex6(t *testing.T) {
 		t.Error("lex6 error")
 	}
 }
+
+func TestLex7(t *testing.T) {
+	lexer := NewLexerWrapper("_ __ ___ _1 _a _a1 a1 a_ a_1 name")
+	for i := 0; i < 10; i++ {
+		if token, _ := lexer.GetToken(); token != TokenId {
+			t.Error("lex7 error")
+		}
+	}
+	if token, _ := lexer.GetToken(); token != TokenEOF {
+		t.Error("lex7 error")
+	}
+}

@@ -483,7 +483,9 @@ func (l *Lexer) lexId(detail *TokenDetail) (int, error) {
 	l.tokenBuffer = string(l.current)
 	l.current = l.next()
 
-	for unicode.IsLetter(rune(l.current)) || l.current == '_' {
+	for unicode.IsLetter(rune(l.current)) ||
+		unicode.IsNumber(rune(l.current)) ||
+		l.current == '_' {
 		l.tokenBuffer = l.tokenBuffer + string(l.current)
 		l.current = l.next()
 	}
