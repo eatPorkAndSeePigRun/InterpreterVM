@@ -28,13 +28,13 @@ func isKeyWord(name string, token *int) bool {
 	return false
 }
 
-func isHexChar(c uint8) bool {
+func isHexChar(c byte) bool {
 	return (c >= '0' && c <= '9') ||
 		(c >= 'a' && c <= 'f') ||
 		(c >= 'A' && c <= 'F')
 }
 
-func (l Lexer) normalTokenDetail(detail *TokenDetail, token int) int {
+func (l *Lexer) normalTokenDetail(detail *TokenDetail, token int) int {
 	detail.Token = token
 	detail.Line = l.line
 	detail.Column = l.column
@@ -42,17 +42,17 @@ func (l Lexer) normalTokenDetail(detail *TokenDetail, token int) int {
 	return token
 }
 
-func (l Lexer) numberTokenDetail(detail *TokenDetail, number float64) int {
+func (l *Lexer) numberTokenDetail(detail *TokenDetail, number float64) int {
 	detail.Number = number
 	return l.normalTokenDetail(detail, TokenNumber)
 }
 
-func (l Lexer) tokenDetail(detail *TokenDetail, str string, token int) int {
+func (l *Lexer) tokenDetail(detail *TokenDetail, str string, token int) int {
 	detail.Str = l.state.GetString(str)
 	return l.normalTokenDetail(detail, token)
 }
 
-func (l Lexer) setEofTokenDetail(detail *TokenDetail) {
+func (l *Lexer) setEofTokenDetail(detail *TokenDetail) {
 	detail.Str = nil
 	detail.Token = TokenEOF
 	detail.Line = l.line
@@ -60,14 +60,14 @@ func (l Lexer) setEofTokenDetail(detail *TokenDetail) {
 	detail.Module = l.module
 }
 
-type CharInStream func() uint8
+type CharInStream func() byte
 
 type Lexer struct {
 	state    *State
 	module   *String
 	inStream CharInStream
 
-	current uint8
+	current byte
 	line    int
 	column  int
 
@@ -106,7 +106,7 @@ func (l *Lexer) GetToken(detail *TokenDetail) (int, error) {
 		case '-':
 			next := l.next()
 			if next == '-' {
-				return -1, l.lexComment()
+				return TokenEOF, l.lexComment()
 			} else {
 				l.current = next
 				return l.normalTokenDetail(detail, '-'), nil
@@ -132,9 +132,9 @@ func (l *Lexer) GetToken(detail *TokenDetail) (int, error) {
 			} else if unicode.IsDigit(rune(next)) {
 				l.tokenBuffer = string(l.current)
 				l.current = next
-				return l.lexNUmberXFractional(detail, false, true,
-					func(c uint8) bool { return unicode.IsDigit(rune(c)) },
-					func(c uint8) bool { return c == 'e' || c == 'E' })
+				return l.lexNumberXFractional(detail, false, true,
+					func(c byte) bool { return unicode.IsDigit(rune(c)) },
+					func(c byte) bool { return c == 'e' || c == 'E' })
 			} else {
 				l.current = l.next()
 				return l.normalTokenDetail(detail, '.'), nil
@@ -170,11 +170,11 @@ func (l *Lexer) GetToken(detail *TokenDetail) (int, error) {
 }
 
 // Get current lex module name.
-func (l Lexer) GetLexModule() *String {
+func (l *Lexer) GetLexModule() *String {
 	return l.module
 }
 
-func (l *Lexer) next() uint8 {
+func (l *Lexer) next() byte {
 	c := l.inStream()
 	if c != EOF {
 		l.column++
@@ -248,7 +248,7 @@ func (l *Lexer) lexNumber(detail *TokenDetail) (int, error) {
 			l.current = l.next()
 
 			return l.lexNumberX(detail, false, isHexChar,
-				func(c uint8) bool { return c == 'p' || c == 'P' })
+				func(c byte) bool { return c == 'p' || c == 'P' })
 		} else {
 			l.tokenBuffer = l.tokenBuffer + string(l.current)
 			l.current = next
@@ -257,12 +257,12 @@ func (l *Lexer) lexNumber(detail *TokenDetail) (int, error) {
 	}
 
 	return l.lexNumberX(detail, integerPart,
-		func(c uint8) bool { return !unicode.IsDigit(rune(c)) },
-		func(c uint8) bool { return c == 'e' || c == 'E' })
+		func(c byte) bool { return unicode.IsDigit(rune(c)) },
+		func(c byte) bool { return c == 'e' || c == 'E' })
 }
 
 func (l *Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
-	isNumberChar func(uint8) bool, isExponent func(uint8) bool) (int, error) {
+	isNumberChar func(byte) bool, isExponent func(byte) bool) (int, error) {
 	for isNumberChar(l.current) {
 		l.tokenBuffer = l.tokenBuffer + string(l.current)
 		l.current = l.next()
@@ -276,11 +276,11 @@ func (l *Lexer) lexNumberX(detail *TokenDetail, integerPart bool,
 		point = true
 	}
 
-	return l.lexNUmberXFractional(detail, integerPart, point, isNumberChar, isExponent)
+	return l.lexNumberXFractional(detail, integerPart, point, isNumberChar, isExponent)
 }
 
-func (l *Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, point bool,
-	isNumberChar func(uint8) bool, isExponent func(uint8) bool) (int, error) {
+func (l *Lexer) lexNumberXFractional(detail *TokenDetail, integerPart bool, point bool,
+	isNumberChar func(byte) bool, isExponent func(byte) bool) (int, error) {
 	fractionalPart := false
 	for isNumberChar(l.current) {
 		l.tokenBuffer = l.tokenBuffer + string(l.current)
@@ -315,7 +315,10 @@ func (l *Lexer) lexNUmberXFractional(detail *TokenDetail, integerPart bool, poin
 	}
 
 	number, err := strconv.ParseFloat(l.tokenBuffer, 64)
-	panic(err)
+	if err != nil {
+		i, _ := strconv.ParseInt(l.tokenBuffer, 16, 64)
+		number = float64(i)
+	}
 	return l.numberTokenDetail(detail, number), nil
 }
 

@@ -121,7 +121,7 @@ func (gc *GC) SetRootTraveller(minor, major RootTravelType) {
 
 // Alloc GC objects
 func (gc *GC) NewTAble(gen int) *Table {
-	t := &Table{}
+	t := NewTable()
 	t.gcObjType = GCObjectTypeTable
 	gc.setObjectGen(t, gen)
 	return t
