@@ -71,3 +71,157 @@ func TestLex4(t *testing.T) {
 		t.Error("lex4 should be a error")
 	}
 }
+
+func TestLex5(t *testing.T) {
+	lexer := NewLexerWrapper("+ - * / % ^ # == ~= <= >= < > = " +
+		"( ) { } [ ] ; : , . .. ...")
+	if token, _ := lexer.GetToken(); token != '+' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '-' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '*' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '/' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '%' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '^' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '#' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenEqual {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenNotEqual {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenLessEqual {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenGreaterEqual {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '<' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '>' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '=' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '(' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != ')' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '{' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '}' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '[' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != ']' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != ';' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != ':' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != ',' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != '.' {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenConcat {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenVarArg {
+		t.Error("lex5 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenEOF {
+		t.Error("lex5 error")
+	}
+}
+
+func TestLex6(t *testing.T) {
+	lexer := NewLexerWrapper("and do else elseif end false for function if " +
+		"in local nil not or repeat return then true until while")
+	if token, _ := lexer.GetToken(); token != TokenAnd {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenDo {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenElse {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenElseif {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenEnd {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenFalse {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenFor {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenFunction {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenIf {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenIn {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenLocal {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenNil {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenNot {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenOr {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenRepeat {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenReturn {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenThen {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenTrue {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenUntil {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenWhile {
+		t.Error("lex6 error")
+	}
+	if token, _ := lexer.GetToken(); token != TokenEOF {
+		t.Error("lex6 error")
+	}
+}

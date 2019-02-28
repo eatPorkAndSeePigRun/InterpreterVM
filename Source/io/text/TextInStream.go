@@ -4,7 +4,7 @@ import (
 	"os"
 )
 
-const EOF = 0xff
+const EOF = 0
 
 type InStream struct {
 	stream *os.File
