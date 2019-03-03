@@ -42,7 +42,9 @@ var tokenStr = []string{
 	"and", "break", "do", "else", "elseif", "end",
 	"false", "for", "function", "if", "in",
 	"local", "nil", "not", "or", "repeat",
-	"return", "then", "true", "false", "until", "while",
+	"return", "then", "true", "until", "while",
+	"<id>", "<string>", "<number>",
+	"==", "~=", "<=", ">=", "..", "...", "<EOF>",
 }
 
 type TokenDetail struct {

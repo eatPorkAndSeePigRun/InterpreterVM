@@ -15,7 +15,7 @@ func NewModuleManager(state *State, modules *Table) *ModuleManager {
 }
 
 // Load and push the closure onto stack
-func (mm ModuleManager) load(lexer *Lexer) {
+func (mm *ModuleManager) load(lexer *Lexer) {
 	// Parse to AST
 	ast := Parse(lexer)
 
@@ -27,20 +27,20 @@ func (mm ModuleManager) load(lexer *Lexer) {
 }
 
 // Check module loaded or not
-func (mm ModuleManager) IsLoaded(moduleName string) bool {
+func (mm *ModuleManager) IsLoaded(moduleName string) bool {
 	value := mm.GetModuleClosure(moduleName)
 	return !value.IsNil()
 }
 
 // Get module closure when module loaded
 // if the module is not loaded, return nil value
-func (mm ModuleManager) GetModuleClosure(moduleName string) Value {
+func (mm *ModuleManager) GetModuleClosure(moduleName string) Value {
 	key := NewValueString(mm.state.GetString(moduleName))
 	return mm.modules.GetValue(key)
 }
 
 // Load module, when loaded success, push the closure of the module onto stack
-func (mm ModuleManager) LoadModule(moduleName string) error {
+func (mm *ModuleManager) LoadModule(moduleName string) error {
 	is := text.NewInStream(moduleName)
 	if !is.IsOpen() {
 		return NewOpenFileFail(moduleName)
@@ -60,7 +60,7 @@ func (mm ModuleManager) LoadModule(moduleName string) error {
 }
 
 // Load module, when loaded success, push the closure of the string onto stack
-func (mm ModuleManager) LoadString(str, name string) {
+func (mm *ModuleManager) LoadString(str, name string) {
 	is := text.NewInStringStream(str)
 	lexer := NewLexer(mm.state, mm.state.GetString(name),
 		func() byte { return is.GetChar() })

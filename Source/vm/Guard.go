@@ -10,6 +10,7 @@ type Guard struct {
 func NewGuard(enter, leave func()) *Guard {
 	guard := &Guard{leave}
 	enter()
-	runtime.SetFinalizer(guard, guard.leave)
+	l := func(obj *Guard) { obj.leave() }
+	runtime.SetFinalizer(guard, l)
 	return guard
 }

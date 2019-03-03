@@ -75,6 +75,8 @@ func NewState() *State {
 	// Init module manager
 	s.moduleManager = NewModuleManager(&s, v.Table)
 
+	s.stack = *NewStack()
+
 	return &s
 }
 

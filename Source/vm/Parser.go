@@ -1,5 +1,7 @@
 package vm
 
+import "fmt"
+
 const (
 	prefixExpTypeNormal = iota
 	prefixExpTypeVar
@@ -13,8 +15,8 @@ type parserImpl struct {
 	lookAhead2_ TokenDetail
 }
 
-func newParserImpl(lexer *Lexer) parserImpl {
-	return parserImpl{lexer: lexer}
+func newParserImpl(lexer *Lexer) *parserImpl {
+	return &parserImpl{lexer, *NewTokenDetail(), *NewTokenDetail(), *NewTokenDetail()}
 }
 
 func (p *parserImpl) parse() SyntaxTree {
@@ -206,7 +208,7 @@ func (p *parserImpl) parseBlock() (SyntaxTree, error) {
 		} else {
 			statement, err := p.parseStatement()
 			if err != nil {
-				panic(err)
+				fmt.Println(err)
 			}
 			if statement != nil {
 				block.Statements = append(block.Statements, statement)
@@ -659,7 +661,7 @@ func (p *parserImpl) parseOtherStatement() (SyntaxTree, error) {
 			p.nextToken() // skip ','
 			exp, err := p.parsePrefixExp(&prefixExpType)
 			if err != nil {
-				panic(err)
+				fmt.Println(err)
 			}
 			if prefixExpType != prefixExpTypeVar {
 				return nil, NewParseError("expect var here", p.current)
@@ -955,7 +957,7 @@ func (p *parserImpl) lookAhead2() *TokenDetail {
 			panic(err)
 		}
 	}
-	return &p.lookAhead_
+	return &p.lookAhead2_
 }
 
 func (p *parserImpl) isMainExp(t TokenDetail) bool {

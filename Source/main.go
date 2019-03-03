@@ -1,21 +1,16 @@
 package main
 
 import (
-	"InterpreterVM/Source/lib/base"
-	"InterpreterVM/Source/lib/io"
-	"InterpreterVM/Source/lib/math"
-	string2 "InterpreterVM/Source/lib/string"
-	"InterpreterVM/Source/lib/table"
 	"InterpreterVM/Source/vm"
 	"fmt"
 	"os"
 )
 
-func repl(state vm.State) {
+func repl(state *vm.State) {
 	fmt.Println("Luna 2.0 Copyright (C) 2014")
 
 	for {
-		fmt.Println("> ")
+		fmt.Print("> ")
 
 		var buffer [1024]byte
 		n, err := os.Stdin.Read(buffer[:])
@@ -30,18 +25,18 @@ func repl(state vm.State) {
 	}
 }
 
-func executeFile(args []string, state vm.State) {
+func executeFile(args []string, state *vm.State) {
 	state.DoModule(args[1])
 }
 
 func main() {
-	var state = *vm.NewState()
+	var state = vm.NewState()
 
-	base.RegisterLibBase(&state)
-	io.RegisterLibIO(&state)
-	math.RegisterLibMath(&state)
-	string2.RegisterLibString(&state)
-	table.RegisterLibTable(&state)
+	//base.RegisterLibBase(state)
+	//io.RegisterLibIO(state)
+	//math.RegisterLibMath(state)
+	//string2.RegisterLibString(state)
+	//table.RegisterLibTable(state)
 
 	if len(os.Args) < 2 {
 		repl(state)

@@ -23,7 +23,10 @@ type Stack struct {
 }
 
 func NewStack() *Stack {
-	return &Stack{make([]Value, 0, KBaseStackSize), nil}
+	s := new(Stack)
+	s.ValueStack = make([]Value, KBaseStackSize)
+	s.Top = &s.ValueStack[0]
+	return s
 }
 
 // Set new top pointer, and [new top, old top) will be set nil
