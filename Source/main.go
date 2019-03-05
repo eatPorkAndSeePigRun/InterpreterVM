@@ -1,6 +1,7 @@
 package main
 
 import (
+	"InterpreterVM/Source/lib/base"
 	"InterpreterVM/Source/vm"
 	"fmt"
 	"os"
@@ -8,6 +9,9 @@ import (
 
 func repl(state *vm.State) {
 	fmt.Println("Luna 2.0 Copyright (C) 2014")
+	state.DoString("a = 1", "stdin")
+	state.DoString("b = 1", "stdin")
+	state.DoString("c = a + b", "stdin")
 
 	for {
 		fmt.Print("> ")
@@ -32,7 +36,7 @@ func executeFile(args []string, state *vm.State) {
 func main() {
 	var state = vm.NewState()
 
-	//base.RegisterLibBase(state)
+	base.RegisterLibBase(state)
 	//io.RegisterLibIO(state)
 	//math.RegisterLibMath(state)
 	//string2.RegisterLibString(state)

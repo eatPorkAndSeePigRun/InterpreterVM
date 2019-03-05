@@ -24,7 +24,7 @@ type Stack struct {
 
 func NewStack() *Stack {
 	s := new(Stack)
-	s.ValueStack = make([]Value, KBaseStackSize)
+	s.ValueStack = make([]Value, 1, KBaseStackSize)
 	s.Top = &s.ValueStack[0]
 	return s
 }

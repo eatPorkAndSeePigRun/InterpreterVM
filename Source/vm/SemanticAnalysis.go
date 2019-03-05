@@ -35,10 +35,12 @@ type semanticAnalysisVisitor struct {
 }
 
 func (sav *semanticAnalysisVisitor) VisitChunk(chunk *Chunk, data unsafe.Pointer) {
-	NewGuard(func() { sav.EnterFunction() }, func() { sav.LeaveFunction() })
+	sav.EnterFunction()
+	defer sav.LeaveFunction()
 
 	{
-		NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+		sav.EnterBlock()
+		defer sav.LeaveBlock()
 		chunk.Block.Accept(sav, nil)
 	}
 }
@@ -68,24 +70,29 @@ func (sav *semanticAnalysisVisitor) VisitBreakStatement(breakStmt *BreakStatemen
 }
 
 func (sav *semanticAnalysisVisitor) VisitDoStatement(doStmt *DoStatement, data unsafe.Pointer) {
-	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+	sav.EnterBlock()
+	defer sav.LeaveBlock()
 	doStmt.Block.Accept(sav, nil)
 }
 
 func (sav *semanticAnalysisVisitor) VisitWhileStatement(whileStmt *WhileStatement, data unsafe.Pointer) {
 	oldLoop := sav.GetLoopAST()
-	NewGuard(func() { sav.SetLoopAST(whileStmt) }, func() { sav.SetLoopAST(oldLoop) })
+	sav.SetLoopAST(whileStmt)
+	defer sav.SetLoopAST(oldLoop)
 	eVarData := newExpVarData(SemanticOpRead)
 	whileStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
-	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+	sav.EnterBlock()
+	defer sav.LeaveBlock()
 	whileStmt.Block.Accept(sav, nil)
 }
 
 func (sav *semanticAnalysisVisitor) VisitRepeatStatement(repeatStmt *RepeatStatement, data unsafe.Pointer) {
 	oldLoop := sav.GetLoopAST()
-	NewGuard(func() { sav.SetLoopAST(repeatStmt) }, func() { sav.SetLoopAST(oldLoop) })
-	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+	sav.SetLoopAST(repeatStmt)
+	defer sav.SetLoopAST(oldLoop)
+	sav.EnterBlock()
+	defer sav.LeaveBlock()
 
 	eVarData := newExpVarData(SemanticOpRead)
 	repeatStmt.Block.Accept(sav, nil)
@@ -97,7 +104,8 @@ func (sav *semanticAnalysisVisitor) VisitIfStatement(ifStmt *IfStatement, data u
 	ifStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
 	{
-		NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+		sav.EnterBlock()
+		defer sav.LeaveBlock()
 		ifStmt.TrueBranch.Accept(sav, nil)
 	}
 
@@ -111,7 +119,8 @@ func (sav *semanticAnalysisVisitor) VisitElseIfStatement(elseifStmt *ElseIfState
 	elseifStmt.Exp.Accept(sav, unsafe.Pointer(eVarData))
 
 	{
-		NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+		sav.EnterBlock()
+		defer sav.LeaveBlock()
 		elseifStmt.TrueBranch.Accept(sav, nil)
 	}
 
@@ -121,13 +130,15 @@ func (sav *semanticAnalysisVisitor) VisitElseIfStatement(elseifStmt *ElseIfState
 }
 
 func (sav *semanticAnalysisVisitor) VisitElseStatement(elseStmt *ElseStatement, data unsafe.Pointer) {
-	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+	sav.EnterBlock()
+	defer sav.LeaveBlock()
 	elseStmt.Block.Accept(sav, nil)
 }
 
 func (sav *semanticAnalysisVisitor) VisitNumericForStatement(numFor *NumericForStatement, data unsafe.Pointer) {
 	oldLoop := sav.GetLoopAST()
-	NewGuard(func() { sav.SetLoopAST(numFor) }, func() { sav.SetLoopAST(oldLoop) })
+	sav.SetLoopAST(numFor)
+	defer sav.SetLoopAST(oldLoop)
 	eVarData := newExpVarData(SemanticOpRead)
 	numFor.Exp1.Accept(sav, unsafe.Pointer(eVarData))
 	numFor.Exp2.Accept(sav, unsafe.Pointer(eVarData))
@@ -135,18 +146,21 @@ func (sav *semanticAnalysisVisitor) VisitNumericForStatement(numFor *NumericForS
 		numFor.Exp3.Accept(sav, unsafe.Pointer(eVarData))
 	}
 
-	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+	sav.EnterBlock()
+	defer sav.LeaveBlock()
 	sav.InsertName(numFor.Name.Str)
 	numFor.Block.Accept(sav, nil)
 }
 
 func (sav *semanticAnalysisVisitor) VisitGenericForStatement(genFor *GenericForStatement, data unsafe.Pointer) {
 	oldLoop := sav.GetLoopAST()
-	NewGuard(func() { sav.SetLoopAST(genFor) }, func() { sav.SetLoopAST(oldLoop) })
+	sav.SetLoopAST(genFor)
+	defer sav.SetLoopAST(oldLoop)
 	var eListData expListData
 	genFor.ExpList.Accept(sav, unsafe.Pointer(&eListData))
 
-	NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+	sav.EnterBlock()
+	defer sav.LeaveBlock()
 	var nameListData nameListData
 	genFor.NameList.Accept(sav, unsafe.Pointer(&nameListData))
 	genFor.Block.Accept(sav, nil)
@@ -158,7 +172,8 @@ func (sav *semanticAnalysisVisitor) VisitFunctionStatement(funcStmt *FunctionSta
 
 	// Set FunctionBody has 'self' param when FunctionName has member token
 	if nameData.HasMemberToken {
-		// TODO
+		body := funcStmt.FuncBody.(*FunctionBody)
+		body.HasSelf = true
 	}
 
 	funcStmt.FuncBody.Accept(sav, nil)
@@ -328,10 +343,12 @@ func (sav *semanticAnalysisVisitor) VisitUnaryExpression(unaryExp *UnaryExpressi
 }
 
 func (sav *semanticAnalysisVisitor) VisitFunctionBody(funcBody *FunctionBody, data unsafe.Pointer) {
-	NewGuard(func() { sav.EnterFunction() }, func() { sav.LeaveFunction() })
+	sav.EnterFunction()
+	defer sav.LeaveFunction()
 
 	{
-		NewGuard(func() { sav.EnterBlock() }, func() { sav.LeaveBlock() })
+		sav.EnterBlock()
+		defer sav.LeaveBlock()
 		if funcBody.HasSelf {
 			self := sav.state.GetString("self")
 			sav.InsertName(self)
