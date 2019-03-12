@@ -37,7 +37,6 @@ func (s *Stack) SetNewTop(top *Value) {
 	// Clear values between new top to old
 	for uintptr(unsafe.Pointer(top)) <= uintptr(unsafe.Pointer(old)) {
 		top.SetNil()
-		//top = (*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(top)) + unsafe.Sizeof(Value{})))
 		top = vPointerAdd(top, 1)
 	}
 }

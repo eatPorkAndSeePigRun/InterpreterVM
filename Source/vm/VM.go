@@ -73,7 +73,7 @@ func (vm *VM) executeFrame() error {
 	call := vm.state.calls.Back().Value.(*CallInfo)
 	cl := call.Func.Closure
 	proto := cl.GetPrototype()
-	var a, b *Value
+	var a, b, c *Value
 
 	for uintptr(unsafe.Pointer(call.Instruction)) < uintptr(unsafe.Pointer(call.End)) {
 		vm.state.CheckRunGC()
@@ -182,7 +182,7 @@ func (vm *VM) executeFrame() error {
 			}
 			a.Type = ValueTNumber
 		case OpTypeAdd:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "add"); err != nil {
 				panic(err)
 			}
@@ -191,46 +191,46 @@ func (vm *VM) executeFrame() error {
 				a.Type = ValueTNumber
 			}
 		case OpTypeSub:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "sub"); err != nil {
 				panic(err)
 			}
 			a.Num = b.Num - c.Num
 			a.Type = ValueTNumber
 		case OpTypeMul:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "multiply"); err != nil {
 				panic(err)
 			}
 			a.Num = b.Num * c.Num
 			a.Type = ValueTNumber
 		case OpTypeDiv:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "div"); err != nil {
 				panic(err)
 			}
 			a.Num = b.Num / c.Num
 			a.Type = ValueTNumber
 		case OpTypePow:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "power"); err != nil {
 				panic(err)
 			}
 			a.Num = math.Pow(b.Num, c.Num)
 		case OpTypeMod:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkArithType(*b, *c, "mod"); err != nil {
 				panic(err)
 			}
 			a.Num = math.Mod(b.Num, c.Num)
 			a.Type = ValueTNumber
 		case OpTypeConcat:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.concat(a, b, c); err != nil {
 				panic(err)
 			}
 		case OpTypeLess:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkInequalityType(*b, *c, "compare(<)"); err != nil {
 				panic(err)
 			}
@@ -240,7 +240,7 @@ func (vm *VM) executeFrame() error {
 				a.SetBool(b.Str.IsLess(*c.Str))
 			}
 		case OpTypeGreater:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkInequalityType(*b, *c, "compare(>)"); err != nil {
 				panic(err)
 			}
@@ -250,13 +250,13 @@ func (vm *VM) executeFrame() error {
 				a.SetBool(c.Str.IsLess(*b.Str))
 			}
 		case OpTypeEqual:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			a.SetBool(b.IsEqual(c))
 		case OpTypeUnEqual:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			a.SetBool(!b.IsEqual(c))
 		case OpTypeLessEqual:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkInequalityType(*b, *c, "compare(<=)"); err != nil {
 				panic(err)
 			}
@@ -266,7 +266,7 @@ func (vm *VM) executeFrame() error {
 				a.SetBool(b.Str.IsLess(*c.Str))
 			}
 		case OpTypeGreaterEqual:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkInequalityType(*b, *c, "compare(>=)"); err != nil {
 				panic(err)
 			}
@@ -280,7 +280,7 @@ func (vm *VM) executeFrame() error {
 			a.Table = vm.state.NewTable()
 			a.Type = ValueTTable
 		case OpTypeSetTable:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.checkTableType(*a, *b, "set", "to"); err != nil {
 				panic(err)
 			}
@@ -292,7 +292,7 @@ func (vm *VM) executeFrame() error {
 				panic("assert")
 			}
 		case OpTypeGetTable:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if a.Type == ValueTTable {
 				*c = a.Table.GetValue(*b)
 			} else if a.Type == ValueTUserData {
@@ -301,12 +301,12 @@ func (vm *VM) executeFrame() error {
 				panic("assert")
 			}
 		case OpTypeForInit:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			if err := vm.forInit(a, b, c); err != nil {
 				panic(err)
 			}
 		case OpTypeForStep:
-			a, b, c := getRegisterABC(i, call)
+			a, b, c = getRegisterABC(i, call)
 			i = *call.Instruction
 			call.Instruction = iPointerAdd(call.Instruction, 1)
 			if (c.Num > 0.0 && a.Num > b.Num) || (c.Num <= 0.0 && a.Num < b.Num) {

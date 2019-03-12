@@ -1406,6 +1406,7 @@ func (cgv *codeGenerateVisitor) fillRemainRegisterNil(registerId, endRegister, l
 	if endRegister != ExpValueCountAny {
 		for registerId < endRegister {
 			instruction := ACode(OpTypeLoadNil, registerId)
+			registerId++
 			function.AddInstruction(instruction, line)
 		}
 	}
